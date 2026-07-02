@@ -1,0 +1,31 @@
+## features to be added 
+- cost tracking
+- context compaction when context limit is about to hit
+- structured output validation 
+- conversation history 
+- saving session data 
+- long term memory 
+- user inclusion for permissions
+- tool permission 
+- blocking path other than the paths inside current directories
+- whitelisting allowed commands 
+- planning 
+- orchestration 
+- reflection 
+- in-memory scratchpad for agent reasoning 
+- pause & resume 
+- security measures
+- prompt injection vulnerability 
+- prompt leakage
+- tool permission boundary 
+- input sanitization 
+- secret and PII isolation 
+- jailbreak detection 
+- rate limiting
+- incremental & surgical file edits to reduce token wastage
+- observability 
+- monitoring 
+- agent traces
+- undo / redo memory 
+- git tools 
+- agent evaluations 
