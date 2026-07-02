@@ -1,0 +1,12 @@
+[project]
+name = "wasabi"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "openai>=2.44.0",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.1",
+    "rich>=15.0.0",
+]
