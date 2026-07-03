@@ -1,6 +1,7 @@
 ## roadmap 
 - DONE : system diagnostics run - check for prompt injections, system poisoning : check src/system_check.py
-- CURRENTLY WORKING ON : git helper tools, see research & techniques in dedicated section below 
+- CURRENTLY WORKING ON : secure shell execution environment - implementing whitelisting vs blacklisting strategy
+- git helper tools, see research & techniques in dedicated section below 
 - surgical edits
 - undo file - so that previous code can be recovered
 - create single source of truth for code
@@ -11,6 +12,25 @@
 - tool - shell tool for executing scripts & reading their output from terminal 
 - multi-agents task distribution and follow-up pipeline 
 - background tasks 
+
+## tools 
+- list of all tools avaiable 
+- filesystem - read, write, replace-in-file, delete, list dirs, search files
+- git - status, diff, log, blame, show, restore
+- uv / python - uv run, pytest, ruff, ruff_format, mypy, compile, compile_project, python_version, pip_list 
+- search - ripgrep 
+- logs - head, tail
+- security - startup security scan, project root protection
+- misc - project tree, read multiple files at once, glob search, symbol search, read json, toml, lock files, diagnotics - return python version, os, uv verson, cwd, git branch 
+- environment integration - TreeSitter & LSP integration 
+
+## features 
+- tool logging
+- cost tracking 
+- memory & context handling 
+- tree-sitter
+- LSP integration 
+- sandboxed execution of untrusted code.
 
 ## system prompt checking
 - checks the current system prompts & trusted files like README.md, CLAUDE.md, CODEX.md, AGENTS.md for prompt poisoning 
@@ -46,12 +66,66 @@ safe?
 ```
 - another way to make sure that prompts are not getting poisoned is by checking file integrity using hashing & checking against the original SHA256 hash. 
 
-## bash / shell tool 
+## bash / shell tool research
 - security measures required 
 - prevent execution of harmful commands 
 - prevent curl web access
 - prevent execution of arbitary code in shell
 - implement a subprocess based execution to prevent script / cmd outside the current working directory 
+- agent's usage
+- required for git commands 
+- required to run python files (initially only python files)
+- performing tests 
+- performing lints
+- searching using grep cmd
+- file inspections - cat, head, tail, wc, ls, pwd
+      - cat : print file content
+      - head : first n lines of file 
+      - tail : last n lines of file
+      - wc : word count 
+      - ls : list directories
+      - pwd : print working directory 
+- dependency inspection - uv list 
+- environment information - python --version, 
+- database interaction - sqlite3 (later)
+- forbidden shell cmds 
+      - tail -f 
+      - rm
+      - mv
+      - cp 
+      - chmod
+      - chown
+      - mount
+      - ln 
+      - sudo 
+      - su
+      - shutdown
+      - reboot
+      - systemctl 
+      - service
+      - pkill 
+      - kill 
+      - curl - exposed using a web search tool 
+      - wget
+      - scp
+      - ssh
+      - nc
+      - telnet 
+      - package installation : uv add, pip install, brew
+      - process management : nohup, &, jobs, bg, fg, screen, tmux
+- allowed commands / whitelist
+      - git : status, diff, log, show, blame, branch
+      - pytest : none
+      - ruff : check, format 
+      - ls
+      - pwd
+      - cat
+- every cmd that agent executes is configured with shell=False, cwd= project_root, fixed timeout, output size limit 
+
+## not implementing a shell tool
+- agent may hallucinate and execute any shell tool 
+- parsing and validation is a bit hard 
+- would rather expose required tools as python function with proper parsing and validation for each tool 
 
 ## blacklisting vs whitelisting resources
 - blacklisting can only help when you have an exhaustive list of things you want to avoid / prevent from being executed / conducted 

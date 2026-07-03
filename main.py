@@ -56,6 +56,12 @@ class Agent:
         self._setup_tools()
         print(f"Agent Initialized with {len(self.tools)} tools")
 
+    def _get_project_root(self) -> str:
+        cwd = Path.cwd().resolve().as_posix()
+        print(cwd)
+        print(type(cwd))
+        return cwd
+
 
     def _setup_tools(self):
         self.tools = [
@@ -114,6 +120,12 @@ class Agent:
                     "required": ["path","new_text"],
                     "additionalProperties": False
                 }
+            ),
+
+            Tool(
+                name="get_project_root",
+                description="get the path for current working directory",
+                parameters={},
             )
         ]
 
@@ -209,6 +221,8 @@ class Agent:
                     tool_input.get("old_text", ""),
                     tool_input["new_text"]
                 )
+            elif tool_name == "get_project_root":
+                return self._get_project_root()
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
