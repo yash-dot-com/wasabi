@@ -54,15 +54,15 @@ class Agent:
         ]
         self.tools: List[Tool] = []
         self._setup_tools()
-        print(f"Agent Initialized with {len(self.tools)} tools")
+        self._load_session()
+        print(f"\nAgent Initialized with {len(self.tools)} tools")
 
     def _get_project_root(self) -> str:
         cwd = Path.cwd().resolve().as_posix()
         print(cwd)
         print(type(cwd))
         return cwd
-
-
+        
     def _setup_tools(self):
         self.tools = [
             #4 - create tool description, not the actual tool. 
@@ -306,28 +306,31 @@ if __name__ == "__main__":
     if not api_key or not prompt_file_path:
         print("Error: OPENAI_API not set")
         sys.exit(1)
-    
-    system_prompt = get_system_prompt(prompt_file_path)
+
+    try:
+        system_prompt = get_system_prompt(prompt_file_path)
+        scan_result = security_scan(project_root=project_root)
+        if scan_result["safe"] == True:
+            print(f"[SUCCESS] : NO VULNERABILITIES FOUND\n")
+            print(json.dumps(scan_result, indent=2))
+        else:
+            print(f"[FAILURE] : VULNERABILITIES FOUND\n")
+            print(json.dumps(scan_result, indent=2))
+            print(f"\n")
+            raise RuntimeError 
+    except RuntimeError as e:
+        print(f"\n[EXITING]\n")
+        sys.exit(1)
 
     agent = Agent(api_key, system_prompt)
 
     while True:
         try:
-            user_input = input("You : ")
+            user_input = input(f"\nYou : ")
 
             if user_input.strip().lower() in ["exit", "quit", "bye"]:
-                print("EXITING")
-                break
-
-            if user_input.strip().lower() in ["scan", "security scan"]:
-                scan_result = security_scan(project_root=project_root)
-                if scan_result["safe"] == True:
-                    print(f"[SUCCESS] : NO VULNERABILITIES FOUND\n")
-                    print(json.dumps(scan_result, indent=2))
-                else:
-                    print(f"[FAILURE] : VULNERABILITIES FOUND\n")
-                    print(json.dumps(scan_result, indent=2))
-                    raise RuntimeError                    
+                print(f"EXITING\n")
+                break                  
 
             if not user_input.strip():
                 continue
@@ -340,6 +343,4 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             print(f"\nEXITING\n")
             break
-        except RuntimeError as e:
-            print(f"\n[EXITING]\n")
-            sys.exit(1)
+        

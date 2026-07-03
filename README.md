@@ -16,9 +16,10 @@
 - IMP : build evaluation system for evaluating agent harness 
 - REFACTOR : system security check 
 
-## study metarial 
+## comparisonal development, getting design inspiration from following repos. 
 - omp : oh-my-pi meta harness built over pi (omp)[https://github.com/can1357/oh-my-pi]
 - pi : (pi)[https://github.com/earendil-works/pi]
+- lightcode : (lightcode)[https://github.com/Kartik-2239/lightcode]
 
 ## tools 
 - list of all tools avaiable 
