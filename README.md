@@ -12,6 +12,13 @@
 - tool - shell tool for executing scripts & reading their output from terminal 
 - multi-agents task distribution and follow-up pipeline 
 - background tasks 
+- IMP : fix decision fatigue for agent by narrowing down and pin-pointing system prompt for better tool usage 
+- IMP : build evaluation system for evaluating agent harness 
+- REFACTOR : system security check 
+
+## study metarial 
+- omp : oh-my-pi meta harness built over pi (omp)[https://github.com/can1357/oh-my-pi]
+- pi : (pi)[https://github.com/earendil-works/pi]
 
 ## tools 
 - list of all tools avaiable 
