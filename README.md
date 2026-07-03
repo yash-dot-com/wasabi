@@ -1,6 +1,6 @@
 ## roadmap 
-- CURRENTLY WORKING ON : system diagnostics run - check for prompt injections, system poisoning
-- git helper
+- DONE : system diagnostics run - check for prompt injections, system poisoning : check src/system_check.py
+- CURRENTLY WORKING ON : git helper tools, see research & techniques in dedicated section below 
 - surgical edits
 - undo file - so that previous code can be recovered
 - create single source of truth for code
