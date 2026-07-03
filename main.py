@@ -54,7 +54,6 @@ class Agent:
         ]
         self.tools: List[Tool] = []
         self._setup_tools()
-        self._load_session()
         print(f"\nAgent Initialized with {len(self.tools)} tools")
 
     def _get_project_root(self) -> str:
@@ -126,7 +125,39 @@ class Agent:
                 name="get_project_root",
                 description="get the path for current working directory",
                 parameters={},
-            )
+            ),
+
+            Tool(
+                name="delete_file",
+                description="move a file to ./wasabi/trash for deletion, basically soft delete to enable recovery",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "file_path": {
+                            "type":"string",
+                            "description":"path of the file that needs to be moved to trash"
+                        }
+                    },
+                    "required":["file_path"],
+                    "additionalProperties": False
+                }
+            ),
+
+            Tool(
+                name="restore_file",
+                description="move a file from ./wasabi/trash to its original path, restore a file from trash",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "file_path": {
+                            "type":"string",
+                            "description":"path of the file that needs to be recovered"
+                        }
+                    },
+                    "required":["file_path"],
+                    "additionalProperties": False
+                }
+            ),
         ]
 
     # 5 - create tools for the agent here
@@ -171,6 +202,75 @@ class Agent:
             # returning errors as string for LLM to understand and reason next step.
             print(f"[TOOL EXECUTION FAILED]\n")
             return f"Error listing the files: {str(e)}"
+        
+    def _delete_file(self, file_path: str) -> str:
+        try:
+            file_path = Path(file_path)
+            resolved = (project_root / file_path).resolve()
+            trash_path = (project_root / "./wasabi" / "trash")
+
+            if not resolved.exists():
+                return f"ERROR : file doesn't exists"
+            
+            if resolved.is_relative_to(trash_path):
+                return f"ERROR : file is already in trash"
+
+            if not resolved.is_relative_to(project_root):
+                return f"ERROR : file deletion outside the root working directory is forbidden"
+            
+            if resolved == project_root:
+                return f"ERROR : deleting project root is forbidden"
+            
+            if resolved.is_dir():
+                return f"ERROR : directory deletion is forbidden"
+            
+            if resolved.is_symlink():
+                return f"ERROR : symlink detected, deletion is forbidden"
+            
+            # if all passed, we can move the file to trash instead of permanently deleting it 
+
+
+            trash_path.mkdir(parents=True, exist_ok=True)
+
+            # to maintain original structure of file we find relative path of file to root 
+            relative_file_path = resolved.relative_to(project_root)
+
+            destination_in_trash = trash_path/relative_file_path
+            destination_in_trash.parent.mkdir(parents=True, exist_ok=True)
+
+            resolved.rename(destination_in_trash)
+
+            return f"file {resolved} moved to {destination_in_trash} as {relative_file_path}"
+        except PermissionError as e:
+                return f"ERROR: Permission denied {str(e)}"
+
+        except OSError as e:
+                return f"ERROR: {str(e)}"
+
+        except Exception as e:
+                return f"ERROR: Unexpected error: {str(e)}"
+        
+    def _restore_file(self, file_path: str) -> str:
+        try:
+            file_path = Path(file_path)
+            trash_root = project_root / "wasabi" / "trash"
+
+            # create file path relative to trash bin 
+            trash_path = project_root / "wasabi" / "trash" / file_path
+
+            if not trash_path.exists():
+                return f"ERROR : file not in trash can"
+            
+            original_relative_path = trash_path.relative_to(trash_root)
+
+            destination = project_root / original_relative_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+
+            trash_path.rename(destination)
+            return f"{file_path} moved from {trash_path} to {destination}"
+        except Exception as e:
+            return f"ERROR : {str(e)}"
+        
 
     def _edit_file(self, path: str, old_text: str, new_text: str) -> str:
         path = check_project_root(path)
@@ -223,6 +323,10 @@ class Agent:
                 )
             elif tool_name == "get_project_root":
                 return self._get_project_root()
+            elif tool_name == "delete_file":
+                return self._delete_file(tool_input["file_path"])
+            elif tool_name == "restore_file":
+                return self._restore_file(tool_input["file_path"])
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
@@ -343,4 +447,3 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             print(f"\nEXITING\n")
             break
-        
