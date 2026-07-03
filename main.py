@@ -1,9 +1,13 @@
 import os
 import sys
+from rich import print
 from pydantic import BaseModel
 from typing import Dict, List, Any
 from openai import OpenAI
 from dotenv import load_dotenv
+from pathlib import Path
+from src.tools.security_tools.project_root_checker import check_project_root
+from src.system_check import security_scan
 import json
 
 load_dotenv()
@@ -51,6 +55,7 @@ class Agent:
         self.tools: List[Tool] = []
         self._setup_tools()
         print(f"Agent Initialized with {len(self.tools)} tools")
+
 
     def _setup_tools(self):
         self.tools = [
@@ -114,6 +119,8 @@ class Agent:
 
     # 5 - create tools for the agent here
     def _read_file(self, path: str) -> str:
+        path = check_project_root(path)
+
         try:
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -127,6 +134,8 @@ class Agent:
             return f"Error reading file: {str(e)}"
         
     def _list_files(self, path: str) -> str:
+        path = check_project_root(path)
+
         try:
             if not os.path.exists(path):
                 return f"path not found: {path}"
@@ -152,6 +161,8 @@ class Agent:
             return f"Error listing the files: {str(e)}"
 
     def _edit_file(self, path: str, old_text: str, new_text: str) -> str:
+        path = check_project_root(path)
+
         try:
             if os.path.exists(path) and old_text:
                 with open(path, "r", encoding="utf-8") as f:
@@ -165,6 +176,7 @@ class Agent:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(content)
 
+                print(f"[EDITING] {path}\n")    
                 print(f"[TOOL RESPONSE] replaced {old_text} with {new_text} in {path}")
                 return f"successfully edited {path}"
             else:
@@ -199,6 +211,8 @@ class Agent:
                 )
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
+        except ValueError as e:
+            return f"Access outside the project root is forbidden"
         except Exception as e:
             return f"Error executing {tool_name}: {str(e)}"
         
@@ -271,6 +285,7 @@ class Agent:
 
   
 if __name__ == "__main__":
+    project_root = Path.cwd().resolve()
     api_key = os.environ.get("OPENAI_API")
     prompt_file_path = os.environ.get("SYSTEM_PROMPT_PATH")
 
@@ -290,16 +305,27 @@ if __name__ == "__main__":
                 print("EXITING")
                 break
 
+            if user_input.strip().lower() in ["scan", "security scan"]:
+                scan_result = security_scan(project_root=project_root)
+                if scan_result["safe"] == True:
+                    print(f"[SUCCESS] : NO VULNERABILITIES FOUND\n")
+                    print(json.dumps(scan_result, indent=2))
+                else:
+                    print(f"[FAILURE] : VULNERABILITIES FOUND\n")
+                    print(json.dumps(scan_result, indent=2))
+                    raise RuntimeError                    
+
             if not user_input.strip():
                 continue
 
             assistant_reply = agent.chat(user_input)
 
             print(f"\nWasabi : {assistant_reply}\n")
-            print("-"*50)
+            print("-"*90)
 
         except KeyboardInterrupt:
-            print("\nEXITING")
+            print(f"\nEXITING\n")
             break
-        except Exception as e:
-            print(f"\nAn error occurred in loop {str(e)}\n")
+        except RuntimeError as e:
+            print(f"\n[EXITING]\n")
+            sys.exit(1)
