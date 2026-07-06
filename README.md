@@ -214,22 +214,23 @@ Background agents continuously update repository knowledge while the primary age
 # OLD DOCUMENTATION BELOW
 
 ## roadmap 
-- DONE : system diagnostics run - check for prompt injections, system poisoning : check src/system_check.py
-- CURRENTLY WORKING ON : secure shell execution environment - implementing whitelisting vs blacklisting strategy
-- git helper tools, see research & techniques in dedicated section below 
+- WOKRING ON : git helper tools, see research & techniques in dedicated section below 
+- secure shell execution environment - implementing whitelisting vs blacklisting strategy
 - surgical edits
+- tool - shell tool for executing scripts & reading their output from terminal 
 - undo file - so that previous code can be recovered
 - create single source of truth for code
 - web search fn - to fetch new documentation 
-- DONE: security measures - prevent edits in files other than current working directory 
 - security measure - blacklisting harmful scripts execution
 - security measure - ask user for permission while running scripts 
-- tool - shell tool for executing scripts & reading their output from terminal 
 - multi-agents task distribution and follow-up pipeline 
 - background tasks 
 - IMP : fix decision fatigue for agent by narrowing down and pin-pointing system prompt for better tool usage 
 - IMP : build evaluation system for evaluating agent harness 
-- REFACTOR : system security check 
+- DONE : system security check 
+- DONE : system diagnostics run - check for prompt injections, system poisoning : check src/system_check.py
+- DONE: security measures - prevent edits in files other than current working directory 
+- DONE : delete and restore file from trash folder
 
 ## comparisonal development, getting design inspiration from following repos. 
 - omp : oh-my-pi meta harness built over pi (omp)[https://github.com/can1357/oh-my-pi]
