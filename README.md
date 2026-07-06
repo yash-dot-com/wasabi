@@ -1,3 +1,214 @@
+## Wasabi
+
+A secure, Python-first coding agent focused on understanding, modifying and reasoning about software projects with minimal tool surface and maximum code awareness.
+
+## Design Philosophy
+
+* Security by default
+* Less tools, better reasoning
+* Semantic code understanding over text search
+* Git-aware and incremental context updates
+* Minimize token usage through caching and intelligent context management
+
+---
+
+# Architecture
+
+## Core Capabilities
+
+### Security
+
+* Startup prompt injection / agent poisoning scan
+* Project root filesystem sandbox
+
+### Filesystem
+
+* Read / Write / Replace / Delete
+* Directory traversal
+* File search
+
+### Git
+
+* Status
+* Diff
+* Log
+* Show
+* Blame
+* Restore
+
+### Python (uv)
+
+* Run scripts
+* Pytest
+* Ruff
+* Mypy
+* Compile checks
+
+### Search
+
+* Fast repository search (ripgrep)
+* File search
+
+### Diagnostics
+
+* Environment
+* Project information
+* Tool versions
+
+### Semantic Understanding
+
+* Tree-sitter
+* LSP
+* Symbol indexing
+* Reference tracking
+* Call hierarchy
+* Structural editing
+
+---
+
+# Development Roadmap
+
+## Phase 1 — Functional Coding Agent
+
+* Security
+* Filesystem
+* Git
+* Python
+* Search
+* Diagnostics
+
+**Goal:** Ship a secure and usable coding agent.
+
+---
+
+## Phase 2 — Repository Understanding
+
+Build a one-time repository snapshot containing:
+
+* Directory tree
+* README
+* AGENTS.md
+* pyproject.toml
+* Dependencies
+* Entry points
+* Project metadata
+
+---
+
+## Phase 3 — Semantic Code Intelligence
+
+Integrate:
+
+* Tree-sitter
+* LSP
+* Symbol graph
+* Dependency graph
+* Call graph
+
+Move from file-based reasoning to architecture-aware reasoning.
+
+---
+
+## Phase 4 — Context Engine
+
+Maintain a continuously updated workspace model.
+
+Features:
+
+* Cached repository state
+* Semantic summaries
+* Symbol index
+* Git state
+* Dependency graph
+* Incremental cache invalidation using Git changes
+
+Purpose:
+
+Avoid repeatedly loading the repository while maintaining an accurate understanding of the project.
+
+---
+
+## Phase 5 — Multi-Agent Workspace
+
+The primary coding agent focuses exclusively on reasoning and implementation.
+
+Background agents continuously maintain project knowledge by:
+
+* Updating documentation
+* Refreshing repository summaries
+* Rebuilding symbol indexes
+* Updating dependency graphs
+* Refreshing semantic context after code changes
+* Maintaining cached workspace state
+
+This keeps the primary agent's context focused on solving the current task rather than performing maintenance work.
+
+---
+
+## Phase 6 — Intelligent Editing
+
+Perform semantic edits instead of text replacement.
+
+Examples:
+
+* Rename symbols safely
+* Move functions
+* Update references
+* Structural refactoring
+* Multi-file edits
+
+---
+
+# Target Agent Workflow
+
+```
+Task
+    ↓
+Understand Repository
+    ↓
+Search & Navigate
+    ↓
+Plan
+    ↓
+Implement
+    ↓
+Run Quality Checks
+    ↓
+Run Tests
+    ↓
+Review Git Diff
+    ↓
+Self Review
+    ↓
+Return Result
+```
+
+Background agents continuously update repository knowledge while the primary agent works.
+
+---
+
+# Current Progress
+
+## Completed
+
+* [x] Startup security scan
+* [x] Prompt injection detection
+* [x] Project root sandbox
+* [x] Filesystem CRUD tools
+
+## Next
+
+* [ ] Git tools
+* [ ] Python (uv) tools
+* [ ] Search
+* [ ] Diagnostics
+* [ ] Tree-sitter
+* [ ] LSP
+* [ ] Context engine
+* [ ] Multi-agent workspace
+
+# OLD DOCUMENTATION BELOW
+
 ## roadmap 
 - DONE : system diagnostics run - check for prompt injections, system poisoning : check src/system_check.py
 - CURRENTLY WORKING ON : secure shell execution environment - implementing whitelisting vs blacklisting strategy
