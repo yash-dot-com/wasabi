@@ -1,7 +1,7 @@
 import os
 import sys
 from rich import print
-from dataclasses import dataclass 
+from dataclasses import dataclass, asdict
 from pydantic import BaseModel
 from typing import Dict, List, Any
 from openai import OpenAI
@@ -147,10 +147,26 @@ class Agent:
                     "properties": {
                         "file_path": {
                             "type":"string",
-                            "description":"path of the file that needs to be moved to trash"
+                            "description":"required. path of the file that needs to be moved to trash"
                         }
                     },
                     "required":["file_path"],
+                    "additionalProperties": False
+                }
+            ),
+
+            Tool(
+                name="git_diff",
+                description="get diffs for a particular file, by default whole project",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "file_path": {
+                            "type":"string",
+                            "description":"optional. Relative path to a file within the project root, path of the file to view changes in that particular file"
+                        }
+                    },
+                    "required":[],
                     "additionalProperties": False
                 }
             ),
@@ -170,13 +186,34 @@ class Agent:
                     "additionalProperties": False
                 }
             ),
+
+            Tool(
+                name="git_status",
+                description="Get the current Git repository status, purpose : Understand repository history and changes." 
+                + "Current branch, Modified files, Staged files, Untracked files",
+                parameters={}
+            ),
+
+            Tool(
+                name="git_changed_files",
+                description="get the statistics of what changed in the project, git diff --name-only underneath.",
+                parameters={}
+            ),
         ]
 
     # 7 - cmd executor function 
-    def _run_command(args: list[str]) -> CommandResult:
+    # tool -> git / python3 / uv / etc 
+    # arguments -> flags & options.
+    # the agent doesn't have 
+    def _run_command(self, tool: str, args: list[str]) -> CommandResult:
+        allowed_tools = ["git", "python3", "uv", "rg", "find"]
+
+        if tool not in allowed_tools:
+            return f"ERROR : access denied; only git, python3, uv, rg, find are accessible"
+        
         try:
             result = subprocess.run(
-                ["git",*args],
+                [tool, *args],
                 cwd=project_root,
                 shell=False,
                 capture_output=True,
@@ -194,31 +231,61 @@ class Agent:
             if len(stderr) > MAX_OUTPUT:
                 stderr = stderr[:MAX_OUTPUT] + "\n\n... OUTPUT TRUNCATED ..."
 
-            return CommandResult(
+            return json.dumps(asdict(CommandResult(
                 success=result.returncode == 0,
                 stdout=stdout.strip(),
                 stderr=stderr.strip(),
                 exit_code=result.returncode,
-            )
+            )))
 
         except subprocess.TimeoutExpired:
 
-            return CommandResult(
+            return json.dumps(asdict(CommandResult(
                 success=False,
                 stdout="",
                 stderr="Git command timed out.",
                 exit_code=-1,
-            )
+            )))
 
         except Exception as e:
 
-            return CommandResult(
+            return json.dumps(asdict(CommandResult(
                 success=False,
                 stdout="",
                 stderr=str(e),
                 exit_code=-1,
-            )
+            )))
 
+    def _git_status(self):
+        """
+        Get the current Git repository status.
+
+        Returns:
+            Current branch, modified files,
+            staged files and untracked files.
+        """
+
+        subprocess_result = self._run_command("git",["status", "--short", "--branch"])
+        return subprocess_result
+    
+    def _git_diff(self, path: str=None):
+        """
+        get diffs for a particular file, by default whole project
+        returns diff output.
+        """
+        cmd_list = ["diff"]
+        if path is not None:
+            cmd_list.append(path)
+
+        subprocess_result = self._run_command("git", cmd_list)
+        return subprocess_result
+    
+    def _git_changed_files(self):
+        """
+        returns names of files that have changes since the last commit
+        """
+        subprocess_result = self._run_command("git", ["diff", "--name-only", "-w", "--stat"])
+        return subprocess_result
 
     # 5 - create tools for the agent here
     def _read_file(self, path: str) -> str:
@@ -387,6 +454,12 @@ class Agent:
                 return self._delete_file(tool_input["file_path"])
             elif tool_name == "restore_file":
                 return self._restore_file(tool_input["file_path"])
+            elif tool_name == "git_status":
+                return self._git_status()
+            elif tool_name == "git_diff":
+                return self._git_diff(tool_input["file_path"])
+            elif tool_name == "git_changed_file":
+                return self._git_changed_file()
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:

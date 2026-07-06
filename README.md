@@ -261,7 +261,7 @@ Git / Ruff / Pytest
 - subprocess talks directly to the operating system, it's your largest attack surface.
 - Wasabi follows a capability-based security model. The LLM never executes arbitrary shell commands or interacts directly with the operating system. Every action must go through a predefined tool with a fixed scope.
 
-### Security
+## Security
 
 - Startup prompt injection / agent poisoning detection.
 - Project root sandbox (no filesystem access outside the repository).
@@ -274,6 +274,25 @@ Git / Ruff / Pytest
 - Structured stdout/stderr capture.
 - Large output truncation before returning results to the LLM to prevent excessive memory usage and token consumption.
 - Consistent error handling with structured tool responses.
+
+## git tooling
+
+- git diff : to check changes changes across file. 
+- git status : check the current status of repository
+- git log(limit=20) :
+- git show(commit) :
+- git blame :
+- git restore : 
+
+## python tooling 
+
+## uv tooling
+
+## environment diagnostic tooling 
+
+## search tooling 
+- search_text 
+- search_files 
 
 ## roadmap 
 - WOKRING ON : git helper tools, see research & techniques in dedicated section below 
