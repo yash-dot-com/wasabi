@@ -213,6 +213,68 @@ Background agents continuously update repository knowledge while the primary age
 
 # OLD DOCUMENTATION BELOW
 
+## learning - 6th july 2026
+- not allowing the agent to directly work with command line tools or execute any commands.
+- understand how the command tools operate first
+- cmd tools put their output as two possible things 
+      - stdout - for standard outputs
+      - stderr - for any errors that may have occurred.
+- for enabling the agent to work with command line tools, I have designed the following mechanism 
+- scoped and controlled execution of commands & proper JSON based output for agents to understand the execution result. 
+- instead of
+```
+LLM
+  │
+  ▼
+run_command("git status")
+``` 
+- we will be doing the following 
+```
+LLM
+  │
+  ▼
+git_status()
+  │
+  ▼
+run_command(["git", "status", "--short", "--branch"])
+```
+
+## subprocesses for executing cmds safely 
+- A subprocess is simply another program that your Python program starts.
+- git, python, ruff, pytest are another programs that agent can start (spawn) as background / parallel tasks
+- the subprocess returns outputs of the executed program 
+- the main program - agent continues even after the subprocess ends.
+
+```
+Agent
+    ↓
+Tool
+    ↓
+subprocess
+    ↓
+Operating System
+    ↓
+Git / Ruff / Pytest
+```
+
+## security concerns & mechanism for subprocess safety
+- subprocess talks directly to the operating system, it's your largest attack surface.
+- Wasabi follows a capability-based security model. The LLM never executes arbitrary shell commands or interacts directly with the operating system. Every action must go through a predefined tool with a fixed scope.
+
+### Security
+
+- Startup prompt injection / agent poisoning detection.
+- Project root sandbox (no filesystem access outside the repository).
+- No generic shell tool exposed to the agent.
+- Capability-based execution (Git, Python, Search, etc. only).
+- `subprocess.run(..., shell=False)` to prevent shell injection.
+- Hardcoded executables and arguments (agent never chooses binaries).
+- Fixed working directory (`cwd=PROJECT_ROOT`).
+- Execution timeouts for all subprocesses.
+- Structured stdout/stderr capture.
+- Large output truncation before returning results to the LLM to prevent excessive memory usage and token consumption.
+- Consistent error handling with structured tool responses.
+
 ## roadmap 
 - WOKRING ON : git helper tools, see research & techniques in dedicated section below 
 - secure shell execution environment - implementing whitelisting vs blacklisting strategy

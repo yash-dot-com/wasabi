@@ -1,19 +1,31 @@
 import os
 import sys
 from rich import print
+from dataclasses import dataclass 
 from pydantic import BaseModel
 from typing import Dict, List, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 from pathlib import Path
+import subprocess
 from src.tools.security_tools.project_root_checker import check_project_root
 from src.system_check import security_scan
 import json
 
 load_dotenv()
 
+@dataclass
+class CommandResult:
+    success: bool
+    stdout: str
+    stderr: str
+    exit_code: int
+
+# constants & env 
 openai = os.getenv("OPENAI_API")
 system_prompt_path = os.getenv("SYSTEM_PROMPT_PATH")
+project_root = Path.cwd().resolve()
+MAX_OUTPUT = 100_000 # for truncating stdout / stderr from subprocesses 
 
 def get_system_prompt(system_prompt_path: str):
     """ safely loads system instructions from specified file """
@@ -159,6 +171,54 @@ class Agent:
                 }
             ),
         ]
+
+    # 7 - cmd executor function 
+    def _run_command(args: list[str]) -> CommandResult:
+        try:
+            result = subprocess.run(
+                ["git",*args],
+                cwd=project_root,
+                shell=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+
+            stdout = result.stdout
+            stderr = result.stderr
+
+            if len(stdout) > MAX_OUTPUT:
+                stdout = stdout[:MAX_OUTPUT] + "\n\n... OUTPUT TRUNCATED ..."
+
+            if len(stderr) > MAX_OUTPUT:
+                stderr = stderr[:MAX_OUTPUT] + "\n\n... OUTPUT TRUNCATED ..."
+
+            return CommandResult(
+                success=result.returncode == 0,
+                stdout=stdout.strip(),
+                stderr=stderr.strip(),
+                exit_code=result.returncode,
+            )
+
+        except subprocess.TimeoutExpired:
+
+            return CommandResult(
+                success=False,
+                stdout="",
+                stderr="Git command timed out.",
+                exit_code=-1,
+            )
+
+        except Exception as e:
+
+            return CommandResult(
+                success=False,
+                stdout="",
+                stderr=str(e),
+                exit_code=-1,
+            )
+
 
     # 5 - create tools for the agent here
     def _read_file(self, path: str) -> str:
