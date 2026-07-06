@@ -1,7 +1,6 @@
-<div style="center">
-    <img width="1270" height="1096" alt="image" src="https://github.com/user-attachments/assets/3e51cc40-e78b-4d5a-a18c-a142125ed95c" />
-</div>
-
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3e51cc40-e78b-4d5a-a18c-a142125ed95c" width="300" alt="Wasabi Logo">
+</p>
 
 ## Wasabi
 
