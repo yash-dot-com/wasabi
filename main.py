@@ -188,6 +188,22 @@ class Agent:
             ),
 
             Tool(
+                name="git_blame",
+                description="get blame for a file specified by file_path",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "file_path": {
+                            "type":"string",
+                            "description":"path of the file for which you need to acquire the blame history"
+                        }
+                    },
+                    "required":["file_path"],
+                    "additionalProperties": False
+                }
+            ),
+
+            Tool(
                 name="git_status",
                 description="Get the current Git repository status, purpose : Understand repository history and changes." 
                 + "Current branch, Modified files, Staged files, Untracked files",
@@ -356,6 +372,17 @@ class Agent:
         subprocess_result = self._run_command("git", ["diff", "--stat"])
         return subprocess_result
     
+    def _git_blame(self, file_path: str):
+        """
+        last modification in file a specific file 
+        """
+        options = [
+            "blame",
+            f"{file_path}"
+        ]
+
+        subprocess_result = self._run_command("git",options)
+        return subprocess_result
     
 
     # 5 - create tools for the agent here
@@ -537,6 +564,8 @@ class Agent:
                 return self._git_show(tool_input["commit_hash"])
             elif tool_name == "git_diff_summary":
                 return self._git_diff_summary()
+            elif tool_name == "git_blame":
+                return self._git_blame(tool_input["file_path"])
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:

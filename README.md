@@ -279,10 +279,12 @@ Git / Ruff / Pytest
 
 - git diff : to check changes changes across file. 
 - git status : check the current status of repository
-- git log(limit=20) :
-- git show(commit) :
-- git blame :
-- git restore : 
+- git log(limit=20) 
+- git show(commit)
+- git blame
+- git restore 
+- git add(list[str])
+- git commit : requires user permission
 
 ## python tooling 
 
