@@ -20,7 +20,6 @@ FILES_TO_SCAN = [
     "AGENTS.md",
     "CLAUDE.md",
     "GEMINI.md",
-    ".github/copilot-instructions.md",
     # add more files if required
 ]
 
@@ -35,6 +34,8 @@ def collect_instruction_files(project_root: Path) -> dict[str, str]:
         
     if not contents:
         return f"no content found"
+    
+    print(contents)
     
     return contents
 

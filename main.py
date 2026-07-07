@@ -199,6 +199,44 @@ class Agent:
                 description="get the statistics of what changed in the project, git diff --name-only underneath.",
                 parameters={}
             ),
+
+            Tool(
+                name="git_diff_summary",
+                description="get a quick statistic summary of all the changed files.",
+                parameters={}
+            ),
+
+            Tool(
+                name="git_log",
+                description="view one-line log of commits with commit hashes, commits hashes from this command can be used with git show and other tools recursively to perform complex actions.",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "limit": {
+                            "type":"integer",
+                            "description":"Optional. Numeric limit to control the number of commits listed by the command."
+                        }
+                    },
+                    "required":[],
+                    "additionalProperties":False
+                }
+            ),
+
+            Tool(
+                name="git_show",
+                description="inspect single git commit with its commit hash; returns : author details, date of commit, diff, & commit message, extremely useful when you want to understand why something changed",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "commit_hash": {
+                            "type":"string",
+                            "description":"Required. string form of the commit hash of the commit which is supposed to be inspected."
+                        }
+                    },
+                    "required":["commit_hash"],
+                    "additionalProperties":False
+                }
+            ),
         ]
 
     # 7 - cmd executor function 
@@ -286,6 +324,39 @@ class Agent:
         """
         subprocess_result = self._run_command("git", ["diff", "--name-only", "-w", "--stat"])
         return subprocess_result
+    
+    def _git_log(self, limit: str = "20"):
+        """
+        view one line log of the current repository
+        can also be used to get the git hash for commit to inspect a single commit with its author, date, diff
+        """
+        options = ["log", "--oneline", f"-{limit}"] 
+        subprocess_result = self._run_command("git", options)
+        return subprocess_result
+    
+    def _git_show(self, commit_hash: str):
+        """
+        requires : commit_hash : string
+        inspect single git commit with its commit hash
+        returns : author details, date of commit, diff, & commit message.
+        """
+        options = [
+            "show",
+            f"{commit_hash}"
+        ]
+
+        subprocess_result = self._run_command("git", options)
+        return subprocess_result
+    
+    def _git_diff_summary(self):
+        """
+        quick diff views, shows no of lines changed across all the changed files
+        """
+
+        subprocess_result = self._run_command("git", ["diff", "--stat"])
+        return subprocess_result
+    
+    
 
     # 5 - create tools for the agent here
     def _read_file(self, path: str) -> str:
@@ -460,6 +531,12 @@ class Agent:
                 return self._git_diff(tool_input["file_path"])
             elif tool_name == "git_changed_file":
                 return self._git_changed_file()
+            elif tool_name == "git_log":
+                return self._git_log(tool_input["limit"])
+            elif tool_name == "git_show":
+                return self._git_show(tool_input["commit_hash"])
+            elif tool_name == "git_diff_summary":
+                return self._git_diff_summary()
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
