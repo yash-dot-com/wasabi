@@ -1,3 +1,4 @@
+import platform
 import os
 import sys
 from rich import print
@@ -210,15 +211,27 @@ class Agent:
                 parameters={}
             ),
 
-            Tool(
-                name="git_changed_files",
-                description="get the statistics of what changed in the project, git diff --name-only underneath.",
-                parameters={}
-            ),
+            # Tool(
+            #     name="git_changed_files",
+            #     description="get the statistics of what changed in the project, git diff --name-only underneath.",
+            #     parameters={}
+            # ),
 
             Tool(
                 name="git_diff_summary",
                 description="get a quick statistic summary of all the changed files.",
+                parameters={}
+            ),
+
+            Tool(
+                name="uv_project_dependency_tree",
+                description="get quick project's dependency tree",
+                parameters={}
+            ),
+
+            Tool(
+                name="system_info",
+                description="get information about operating system, python version, uv version, project root",
                 parameters={}
             ),
 
@@ -327,19 +340,20 @@ class Agent:
         get diffs for a particular file, by default whole project
         returns diff output.
         """
-        cmd_list = ["diff"]
-        if path is not None:
-            cmd_list.append(path)
+        options = ["diff"]
+        if path:
+            options.append(path)
 
-        subprocess_result = self._run_command("git", cmd_list)
+        subprocess_result = self._run_command("git", options)
         return subprocess_result
     
-    def _git_changed_files(self):
-        """
-        returns names of files that have changes since the last commit
-        """
-        subprocess_result = self._run_command("git", ["diff", "--name-only", "-w", "--stat"])
-        return subprocess_result
+    # replaced by diff summary function
+    # def _git_changed_files(self):
+    #     """
+    #     returns names of files that have changes since the last commit
+    #     """
+    #     subprocess_result = self._run_command("git", ["diff", "--name-only", "-w", "--stat"])
+    #     return subprocess_result
     
     def _git_log(self, limit: str = "20"):
         """
@@ -384,6 +398,37 @@ class Agent:
         subprocess_result = self._run_command("git",options)
         return subprocess_result
     
+    def _system_info(self):
+        """
+        returns os, cwd, project root, python version, git version, uv version, rg version
+        """
+
+        platform_info = {
+            "system": platform.system(),
+            "release": platform.release(),
+            "version": platform.version(),
+            "mac_ver": platform.mac_ver()
+        }
+
+        python_info = {
+            "python" : platform.python_version(),
+            "python_compiler" : platform.python_compiler()
+        }
+
+        uv_info = {
+            "uv_version": self._run_command("uv", ["--version"]) 
+        }
+
+        result = json.dumps([platform_info, python_info, uv_info, str(project_root)])
+        return result
+    
+    def _uv_project_dependency_tree(self):
+        """
+        returns the dependency tree for current working directory
+        """
+        subprocess_result = self._run_command("uv", ["tree"])
+        return subprocess_result
+
 
     # 5 - create tools for the agent here
     def _read_file(self, path: str) -> str:
@@ -556,8 +601,8 @@ class Agent:
                 return self._git_status()
             elif tool_name == "git_diff":
                 return self._git_diff(tool_input["file_path"])
-            elif tool_name == "git_changed_file":
-                return self._git_changed_file()
+            # elif tool_name == "git_changed_file":
+            #     return self._git_changed_file()
             elif tool_name == "git_log":
                 return self._git_log(tool_input["limit"])
             elif tool_name == "git_show":
@@ -566,6 +611,10 @@ class Agent:
                 return self._git_diff_summary()
             elif tool_name == "git_blame":
                 return self._git_blame(tool_input["file_path"])
+            elif tool_name == "uv_project_dependency_tree":
+                return self._uv_project_dependency_tree()
+            elif tool_name == "system_info":
+                return self._system_info()
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
