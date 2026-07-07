@@ -41,7 +41,10 @@ A secure, Python-first coding agent focused on understanding, modifying and reas
 * Restore
 
 ### Python (uv)
-
+- need to create a user approval mechanism to approve running any scripts / files using python.
+- shell scripts can be written in python and bypass the command check. 
+- need to create a strict command parser and only allow whitelisted cmds 
+- need to find a way to avoid clever shell scripting & execution of python scripts with shell functions.
 * Run scripts
 * Pytest
 * Ruff
