@@ -66,6 +66,16 @@ How the Loop Works
 - Architecture documentation
 - Demo
 
+## states used in agent
+- tree sitter index : quick code traversal & understanding
+- wasabi.md : overall project understanding
+- lsp : semantically correct code checker
+
+## extras 
+- self learning system : global, project specific
+- lessons.json : stores project-specific learnings.
+- dockerized / firecracker isolated execution of code 
+
 # Architecture
 
 ## Core Capabilities
