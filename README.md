@@ -14,7 +14,57 @@ A secure, Python-first coding agent focused on understanding, modifying and reas
 * Git-aware and incremental context updates
 * Minimize token usage through caching and intelligent context management
 
----
+## 9th july - learning
+
+- LSP
+How the Loop Works
+1. Al generates code (with intentional bugs in the demo)
+2. LSP analyzes the code using TypeScript's language server
+3. Diagnostics returned (errors, warning with line numbers)
+4. Formatted for AI - errors converted to human-readable format
+5. AI fixes errors and submits new code
+6. Repeat until no errors remain (max 5 iterations)
+
+## Day 1 - 9th july 2026
+- uv tools
+- Text search
+- File discovery
+- Precise reads
+- Exact replacement
+- Insert operations
+- Atomic writes
+- File hashes
+- Script permissions
+- System-prompt hardening
+
+## Day 2 - 10th july 2026
+- Tree-sitter integration
+- Repository discovery
+- Global symbol index
+- Import extraction
+- Dependency graph
+- Initial WASABI.md
+- Incremental context update- - s
+
+## Day 3 - 11th july 2026
+- Complete surgical-edit system
+- Symbol reads
+- Symbol replacement
+- Git-aware indexing
+- Context retrieval
+- LSP client
+- Persistent LSP server loop
+
+## Day 4 - 12th july 2026
+- LSP diagnostic loop
+- Edit validation
+- Automatic rollback
+- Unit tests
+- Integration tests
+- Adversarial tests
+- README
+- Architecture documentation
+- Demo
 
 # Architecture
 
