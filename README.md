@@ -54,7 +54,7 @@ A secure, Python-first coding agent focused on understanding, modifying and reas
 ### Search
 
 * Fast repository search (ripgrep)
-* File search
+* File search (ripgrep)
 
 ### Diagnostics
 
