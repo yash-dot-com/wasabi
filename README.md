@@ -26,120 +26,73 @@ Wasabi explores:
 
 ### Completed
 
-- [x] OpenAI-powered agent loop with tool calling
-- [x] Multi-step agentic tool workflows
-- [x] Centralized tool execution layer
-- [x] Minimal terminal interface with Markdown rendering and tool-call visibility
-
-#### Filesystem
-- [x] Read files
-- [x] List files and directories
-- [x] Edit files
-- [x] Soft-delete files to a recoverable trash directory
-- [x] Restore deleted files
-- [x] Project-root validation
-
-#### Git
-- [x] Git status
-- [x] Git diff
-- [x] Git diff summary
-- [x] Git log
-- [x] Git blame
-- [x] Git show
-
-#### Python and `uv`
-- [x] Check `uv` version
-- [x] Synchronize project dependencies
-- [x] Inspect dependency tree
-- [x] Add and remove Python packages
-- [x] Run Python scripts
-- [x] Run Python modules
-- [x] Run project development commands
-
-#### Repository Search
-- [x] Repository-wide text search with `ripgrep`
-- [x] Exact file and line-number discovery
+- [x] Core agent loop with OpenAI tool calling
+- [x] Tool execution layer
+- [x] System information tools
+- [x] Filesystem tools
+- [x] Project-root protection
+- [x] Soft deletion and file restoration
+- [x] Git tools
+- [x] Prompt-injection check during initialization
+- [x] User permission mechanism for destructive and sensitive operations
+- [x] System prompt security hardening
+- [x] `uv` tooling
+  - [x] Version
+  - [x] Sync
+  - [x] Dependency tree
+  - [x] Add packages
+  - [x] Remove packages
+  - [x] Run scripts
+  - [x] Run modules
+  - [x] Run commands
+- [x] Ripgrep-based text search
 - [x] Search with surrounding context
-- [x] File discovery using glob patterns
-- [x] `.gitignore`-aware search
+- [x] File discovery
+- [x] Minimal clean TUI
 
-#### Agent Security
-- [x] Project-root filesystem isolation
-- [x] Path traversal protection
-- [x] Protection against deleting the project root
-- [x] Explicit `y/N` permission for sensitive operations
-- [x] User approval before script and code execution
-- [x] Prompt-injection checks during initialization
-- [x] Repository content treated as untrusted data
-- [x] Rules against recreating denied operations through alternative tools, scripts, languages, or execution paths
-- [x] Initial adversarial testing against project deletion and tool-restriction bypasses
-
-## In Progress / TODO
+### Remaining — Finish Wasabi in 2 Days
 
 #### Precise Reads and Surgical Edits
 - [ ] Read exact line ranges with line numbers
-- [ ] Replace exact and uniquely matching code
+- [ ] Replace exact code blocks
 - [ ] Replace specific line ranges
-- [ ] Insert code before an exact anchor
-- [ ] Insert code after an exact anchor
-- [ ] Preserve unrelated file content
-- [ ] Atomic file writes
-- [ ] File-hash validation to prevent stale edits
+- [ ] Insert before an exact anchor
+- [ ] Insert after an exact anchor
+- [ ] Atomic writes
+- [ ] File-hash validation for stale edits
 
-#### Tree-sitter and AST-Based Code Intelligence
-- [ ] Parse source files into syntax trees
-- [ ] Extract functions, classes, methods, imports, and symbols
-- [ ] Identify exact symbol boundaries
-- [ ] Build a repository-wide symbol index
+#### Tree-sitter and Code Intelligence
+- [ ] Tree-sitter integration
+- [ ] Extract functions, classes, methods and imports
+- [ ] Build a global symbol index
 - [ ] Read code by symbol
-- [ ] Modify code by symbol
-- [ ] Track structural relationships between symbols and modules
+- [ ] Precise symbol-level edits
+
+#### Project Context
+- [ ] Generate persistent `WASABI.md` project context
+- [ ] Keep architecture, important modules, dependencies and project decisions in context
+- [ ] Update only affected sections when the project changes
 
 #### Dependency Intelligence
-- [ ] Extract internal imports and module relationships
-- [ ] Build a dependency graph
-- [ ] Find reverse dependencies
-- [ ] Determine modules affected by a code change
-
-#### Persistent Project Context
-- [ ] Generate project-level `WASABI.md`
-- [ ] Store architecture, modules, entry points, dependencies, interfaces, testing commands, and security constraints
-- [ ] Detect repository changes
-- [ ] Update only affected `WASABI.md` sections
+- [ ] Build internal module dependency relationships
+- [ ] Identify reverse dependencies and affected modules
 
 #### LSP Integration
 - [ ] Implement LSP client
-- [ ] Maintain a persistent language-server process
-- [ ] Go to definition
-- [ ] Find references
-- [ ] Hover and type information
-- [ ] Document and workspace symbols
-- [ ] Diagnostics and error detection
+- [ ] Maintain persistent language-server process
+- [ ] Definitions
+- [ ] References
+- [ ] Diagnostics
+- [ ] Validation loop after edits
 
 #### Context Compaction
 - [ ] Track token usage from OpenAI API responses
-- [ ] Define context-compaction thresholds
-- [ ] Compact old conversation and tool history
-- [ ] Preserve current task, project context, recent actions, unresolved errors, and security instructions
+- [ ] Compact old context when a threshold is reached
+- [ ] Preserve active task, important project context, unresolved errors and recent actions
 
-#### Monitoring and Evaluation
-- [ ] Trace agent actions and tool calls
-- [ ] Record execution outcomes and failures
-- [ ] Build evaluation cases for normal coding tasks
-- [ ] Build adversarial security evaluations
-- [ ] Evaluate tool misuse and permission-boundary behavior
-- [ ] Research security vulnerabilities affecting production agentic systems
-
-#### Distribution
-- [ ] Clean Python package structure
+#### Distribution and Finalization
+- [ ] Create distributable Python package
 - [ ] Add CLI entry point
-- [ ] Build distributable Python package
-- [ ] Test installation in a clean environment
-
-## Core Principle
-
-Wasabi is built around one central question:
-
-- **How can an AI agent be given enough capability to perform useful engineering work while keeping its execution controlled, observable, secure, and economical?**
-
-- The goal of the project is not to build the largest coding-agent framework. It is to directly implement and understand the systems behind practical agentic software
+- [ ] Final integration testing
+- [ ] Final adversarial security testing
+- [ ] README cleanup
