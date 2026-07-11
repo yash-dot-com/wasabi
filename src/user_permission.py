@@ -1,15 +1,20 @@
-def user_permission(toolName: str, command: str):
+from collections.abc import Callable
+
+
+def user_permission(
+    tool_name: str,
+    command: str,
+    request_handler: Callable[[str, str], bool],
+) -> bool:
     """
     Prompt the user for permission to perform an action.
 
     Args:
-        toolName (str): The name of the tool requesting permission.
+        tool_name (str): The name of the tool requesting permission.
         command (str): The command that requires user permission.
+        request_handler: A host-provided function that obtains the decision.
 
     Returns:
         bool: True if permission is granted, False otherwise.
     """
-    user_input = input(f"allow action : {toolName} : {command} [y/n] : ")
-    if user_input.strip().lower() not in ["y", "yes"]:
-        return False
-    return True
+    return bool(request_handler(tool_name, command))

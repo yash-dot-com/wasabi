@@ -18,6 +18,7 @@ class SecurityScanResult:
 
 FILES_TO_SCAN = [
     "AGENTS.md",
+    "AGENT.md",
     "CLAUDE.md",
     "GEMINI.md",
     # add more files if required
@@ -34,8 +35,6 @@ def collect_instruction_files(project_root: Path) -> dict[str, str]:
         
     if not contents:
         return f"no content found"
-    
-    print(contents)
     
     return contents
 
@@ -73,10 +72,7 @@ SCANNER_PROMPT = """
 
 
 def security_scan(project_root: Path):
-        print(f"\n[STARTED SCAN]\n")
-
         content = collect_instruction_files(project_root)
-        print(f"[LOADED CONTENTS FROM {len(content)} .md file/s]\n")
         
         messages = [
             {"role":"system", "content": SCANNER_PROMPT},
@@ -84,8 +80,6 @@ def security_scan(project_root: Path):
         ]
 
         client = OpenAI(api_key=api_key)
-
-        print(f"[ANALYZING PROMPTS]\n")
 
         try:
             response = client.chat.completions.create(

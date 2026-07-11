@@ -1,14 +1,13 @@
 import platform
 import os
-import sys
-from rich import print
 from dataclasses import dataclass, asdict
 from pydantic import BaseModel
-from typing import Dict, List, Any, Optional
+from typing import Callable, Dict, List, Any, Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 from pathlib import Path
 import subprocess
+import time
 from src.tools.security_tools.project_root_checker import check_project_root
 from src.system_check import security_scan
 from src.user_permission import user_permission
@@ -32,20 +31,15 @@ MAX_OUTPUT = 100_000 # for truncating stdout / stderr from subprocesses
 def get_system_prompt(system_prompt_path: str):
     """ safely loads system instructions from specified file """
     if not system_prompt_path:
-        print("SYSTEM PROMPT PATH MISSING")
-        sys.exit(1)
+        raise RuntimeError("SYSTEM_PROMPT_PATH is not set.")
 
     try:
         with open(system_prompt_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except FileNotFoundError as e:
-        print(f"File not found : {str(e)}")
-        sys.exit(1)
+        raise RuntimeError(f"System prompt file not found: {str(e)}") from e
     except Exception as e:
-        print(f"Error Reading the system prompt file")
-        sys.exit(1)
-    
-system_prompt = get_system_prompt(system_prompt_path)
+        raise RuntimeError("Could not read the system prompt file.") from e
 
 # 1 - create tool model
 # standardized tool schema 
@@ -59,7 +53,13 @@ class Tool(BaseModel):
 # use : colon for type annotation 
 # use = for assigning values
 class Agent:
-    def __init__(self, api_key: str, system_prompt: str):
+    def __init__(
+        self,
+        api_key: str,
+        system_prompt: str,
+        event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
+        permission_handler: Optional[Callable[[str, str], bool]] = None,
+    ):
         self.client = OpenAI(api_key=api_key)
         # initialize messages array with system prompt for the agent.
 
@@ -67,13 +67,20 @@ class Agent:
             {"role":"system", "content": system_prompt}
         ]
         self.tools: List[Tool] = []
+        self._event_handler = event_handler or (lambda event: None)
+        self._permission_handler = permission_handler or (lambda tool_name, command: False)
         self._setup_tools()
-        print(f"\nAgent Initialized with {len(self.tools)} tools")
+        self._emit("status", message=f"Agent initialized with {len(self.tools)} tools")
+
+    def _emit(self, event_type: str, **payload: Any) -> None:
+        """Notify the host about progress without depending on terminal rendering."""
+        self._event_handler({"type": event_type, **payload})
+
+    def _request_permission(self, tool_name: str, command: str) -> bool:
+        return user_permission(tool_name, command, self._permission_handler)
 
     def _get_project_root(self) -> str:
         cwd = Path.cwd().resolve().as_posix()
-        print(cwd)
-        print(type(cwd))
         return cwd
         
     def _setup_tools(self):
@@ -704,7 +711,7 @@ class Agent:
 
         packages = " ".join(package_names)
 
-        if not user_permission("uv add", packages):
+        if not self._request_permission("uv add", packages):
             return "User permission denied."
 
         options = [
@@ -723,9 +730,9 @@ class Agent:
         if not package_names:
             return "No Packages provided"
         
-        packages = " ".join(package_names, " ")
+        packages = " ".join(package_names)
 
-        if not user_permission("uv remove", packages):
+        if not self._request_permission("uv remove", packages):
             return "User Permission Denied"
         
         options = [
@@ -741,7 +748,7 @@ class Agent:
         Useful after dependency changes to ensure reproducible installations.
         """
 
-        if user_permission("uv", "lock") != True:
+        if not self._request_permission("uv", "lock"):
             return f"User Permission Denied"
         
         subprocess_result = self._run_command("uv", ["lock"])
@@ -753,7 +760,7 @@ class Agent:
         """
         arguments = arguments or []
 
-        if not user_permission(
+        if not self._request_permission(
             "Run Python script",
             f"{script_path} {' '.join(arguments)}",
         ):
@@ -773,7 +780,7 @@ class Agent:
         """
         arguments = arguments or []
 
-        if not user_permission(
+        if not self._request_permission(
             "Run Python module",
             f"{module_name} {' '.join(arguments)}",
         ):
@@ -795,7 +802,7 @@ class Agent:
         """
         arguments = arguments or []
 
-        if not user_permission(
+        if not self._request_permission(
             "Run command",
             f"{command} {' '.join(arguments)}",
         ):
@@ -816,13 +823,10 @@ class Agent:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
-            print(f"[TOOL RESPONSE]\n")
             return f"Contents of {path}: \n {content}"
         except FileNotFoundError as e:
-            print(f"[TOOL EXECUTION FAILED]\n")
             return f"File not found: {path}"
         except Exception as e:
-            print(f"[TOOL EXECUTION FAILED]\n")
             return f"Error reading file: {str(e)}"
         
     def _list_files(self, path: str) -> str:
@@ -845,15 +849,13 @@ class Agent:
             if not items:
                 return f"empty directory {path}"
             
-            print(f"[TOOL RESPONSE] returning list of files")
             return f"contents of {path}:\n" + "\n".join(items)
         except Exception as e:
             # returning errors as string for LLM to understand and reason next step.
-            print(f"[TOOL EXECUTION FAILED]\n")
             return f"Error listing the files: {str(e)}"
         
     def _delete_file(self, file_path: str) -> str:
-        if user_permission("delete file", file_path) != True:
+        if not self._request_permission("delete file", file_path):
             return f"User Permission Denied"
         
         try:
@@ -940,8 +942,6 @@ class Agent:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(content)
 
-                print(f"[EDITING] {path}\n")    
-                print(f"[TOOL RESPONSE] replaced {old_text} with {new_text} in {path}")
                 return f"successfully edited {path}"
             else:
                 # create fresh file, possibly in nested path 
@@ -953,11 +953,9 @@ class Agent:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(new_text)
 
-                print(f"[TOOL RESPONSE] added {new_text} in {path}")
                 return f"successfully created path : {path}"
             
         except Exception as e:
-            print(f"[TOOL EXECUTION FAILED]\n")
             return f"Error editing file: {str(e)}"
         
     # searching text 
@@ -1133,9 +1131,20 @@ class Agent:
                     # extract the tool call argument into dictionary
                     tool_input = json.loads(tool_call.function.arguments)
 
-                    print(f"[TOOL CALL] : {tool_name} with arguments : {tool_input}")
+                    self._emit("tool_call", tool_name=tool_name, arguments=tool_input, status="running")
+                    started_at = time.perf_counter()
 
                     execution_result = self._execute_tools(tool_name, tool_input)
+
+                    failed = execution_result.lower().startswith(("error", "file not found"))
+
+                    self._emit(
+                        "tool_result",
+                        tool_name=tool_name,
+                        status="failed" if failed else "completed",
+                        result=execution_result,
+                        duration_seconds=time.perf_counter() - started_at,
+                    )
 
                     # append the tool execution result to conversation memory 
                     self.messages.append({
@@ -1152,48 +1161,43 @@ class Agent:
                 return assistant_message.content
 
   
-if __name__ == "__main__":
+def main() -> None:
+    """Compose the existing agent with the terminal CLI presentation layer."""
+    from src.cli.app import WasabiCLI
+
     project_root = Path.cwd().resolve()
     api_key = os.environ.get("OPENAI_API")
     prompt_file_path = os.environ.get("SYSTEM_PROMPT_PATH")
 
-    if not api_key or not prompt_file_path:
-        print("Error: OPENAI_API not set")
-        sys.exit(1)
+    startup_error: Optional[str] = None
+    startup_status: Optional[str] = None
+    agent_factory = None
 
     try:
-        system_prompt = get_system_prompt(prompt_file_path)
+        if not api_key:
+            raise RuntimeError("OPENAI_API is not set.")
+
+        prompt = get_system_prompt(prompt_file_path)
         scan_result = security_scan(project_root=project_root)
-        if scan_result["safe"] == True:
-            print(f"[SUCCESS] : NO VULNERABILITIES FOUND\n")
-            print(json.dumps(scan_result, indent=2))
-        else:
-            print(f"[FAILURE] : VULNERABILITIES FOUND\n")
-            print(json.dumps(scan_result, indent=2))
-            print(f"\n")
-            raise RuntimeError 
-    except RuntimeError as e:
-        print(f"\n[EXITING]\n")
-        sys.exit(1)
+        if not scan_result.get("safe"):
+            raise RuntimeError(
+                "Startup security scan found potential vulnerabilities:\n"
+                + json.dumps(scan_result, indent=2)
+            )
 
-    agent = Agent(api_key, system_prompt)
+        startup_status = "Ready · startup security scan passed"
 
-    while True:
-        try:
-            user_input = input(f"\nYou : ")
+        def agent_factory(event_handler, permission_handler):
+            return Agent(api_key, prompt, event_handler, permission_handler)
+    except Exception as error:
+        startup_error = str(error)
 
-            if user_input.strip().lower() in ["exit", "quit", "bye"]:
-                print(f"EXITING\n")
-                break                  
+    WasabiCLI(
+        agent_factory=agent_factory,
+        startup_error=startup_error,
+        startup_status=startup_status,
+    ).run()
 
-            if not user_input.strip():
-                continue
 
-            assistant_reply = agent.chat(user_input)
-
-            print(f"\nWasabi : {assistant_reply}\n")
-            print("-"*90)
-
-        except KeyboardInterrupt:
-            print(f"\n [EXITING] \n")
-            break
+if __name__ == "__main__":
+    main()
