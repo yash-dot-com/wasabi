@@ -1,5 +1,5 @@
-<p align="left">
-  <img src="https://github.com/user-attachments/assets/3e51cc40-e78b-4d5a-a18c-a142125ed95c" width="300" alt="Wasabi Logo">
+<p align="center">
+  <img src="static/Wasabi-Header.png" width="1100" alt="Wasabi Logo">
 </p>
 
 ## Wasabi
