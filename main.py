@@ -212,11 +212,17 @@ class Agent:
                 parameters={}
             ),
 
-            # Tool(
-            #     name="git_changed_files",
-            #     description="get the statistics of what changed in the project, git diff --name-only underneath.",
-            #     parameters={}
-            # ),
+            Tool(
+                name="uv_sync",
+                description="Synchronizes the project's virtual environment with pyproject.toml and uv.lock, installs necessary and removes unnecessary ones",
+                parameters={}
+            ),
+
+            Tool(
+                name="uv_version",
+                description="get version for uv tool",
+                parameters={}
+            ),
 
             Tool(
                 name="git_diff_summary",
@@ -327,7 +333,8 @@ class Agent:
                 stderr=str(e),
                 exit_code=-1,
             )))
-
+        
+    # GIT TOOLS
     def _git_status(self):
         """
         Get the current Git repository status.
@@ -427,13 +434,66 @@ class Agent:
         result = json.dumps([platform_info, python_info, uv_info, str(project_root)])
         return result
     
+    # UV TOOLS
+    # tool description added for : uv project dependency tree
+    # version, sync, add and remove 
     def _uv_project_dependency_tree(self):
         """
         returns the dependency tree for current working directory
         """
         subprocess_result = self._run_command("uv", ["tree"])
         return subprocess_result
+    
+    def _uv_version(self):
+        subprocess_result = self._run_command("uv", ["--version"])
+        return subprocess_result
+    
+    def _uv_sync(self):
+        """
+        Synchronizes the project's virtual environment with pyproject.toml and uv.lock. 
+        Installs missing dependencies and removes unnecessary ones.
+        """
+        subprocess_result = self._run_command("uv", ["sync"])
+        return subprocess_result
+    
+    def _uv_add(self, package_names: list[str]) -> str:
+        """
+        add single package or multiple packages to the project
+        """
+        if not package_names:
+            return "No packages provided."
 
+        packages = " ".join(package_names)
+
+        if not user_permission("uv add", packages):
+            return "User permission denied."
+
+        options = [
+            "add",
+            *package_names,
+        ]
+
+        return self._run_command("uv", options)
+    
+    def _uv_remove(self, package_names: list[str]):
+        """
+        remove single package or multiple packages from the project
+        """
+
+        if not package_names:
+            return "No Packages provided"
+        
+        packages = " ".join(package_names, " ")
+
+        if not user_permission("uv remove", packages):
+            return "User Permission Denied"
+        
+        options = [
+            "remove",
+            *package_names
+        ]
+
+        return self._run_command("uv", options)
 
     # 5 - create tools for the agent here
     def _read_file(self, path: str) -> str:
@@ -623,6 +683,10 @@ class Agent:
                 return self._uv_project_dependency_tree()
             elif tool_name == "system_info":
                 return self._system_info()
+            elif tool_name == "uv_sync":
+                return self._uv_sync()
+            elif tool_name == "uv_version":
+                return self._uv_version()
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
