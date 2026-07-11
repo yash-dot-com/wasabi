@@ -55,7 +55,7 @@ Execute       Deny
 ```
 - --json mode : outputs a json string for result we are implementing json results
 - JSON lines describing each match, including: file path, matched text, line number, byte offset
-- [CURRENTLY] : File discovery using ripgrep 
+- [DONE] : File discovery using ripgrep 
 ```js
 Agent wants to find:
 - all Python files
@@ -68,6 +68,39 @@ find_files("*.py")
 find_files("test_*.py")
 find_files("pyproject.toml")
 ```
+- [CURRENT]: SURGICAL EDITS, READS & WRITES
+```
+User: "Add timeout support to _uv_run_script"
+
+        ↓
+
+search_text("_uv_run_script")
+
+        ↓
+
+Found: main.py, line 550
+
+        ↓
+
+read_lines("main.py", 540, 580)
+
+        ↓
+
+Agent sees only relevant code
+
+        ↓
+
+replace_exact(
+    old_content="...",
+    new_content="..."
+)
+
+        ↓
+
+Only that exact section changes.
+Everything else remains untouched.
+```
+- clean and minimal TUI for wasabi
 - Precise reads
 - Exact replacement
 - Insert operations
