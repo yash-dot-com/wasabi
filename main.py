@@ -446,6 +446,71 @@ class Agent:
                     "additionalProperties": False
                 }
             ),
+
+            Tool(
+                name="find_files",
+                description=(
+                    "Find files in the current project by filename or glob pattern using ripgrep. "
+                    "Use this tool to discover files when you know the filename, extension, naming "
+                    "pattern, or approximate file type but not the exact path. It respects the "
+                    "project's .gitignore rules by default and returns matching file paths. "
+                    "Examples include finding all Python files with '*.py', test files with "
+                    "'test_*.py', configuration files with 'pyproject.toml', or files inside a "
+                    "specific directory with 'src/*.py'. Use this tool for file discovery; use "
+                    "search_text when searching for content inside files."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": (
+                                "Filename or glob pattern used to find matching files. "
+                                "Examples: '*.py', 'test_*.py', 'pyproject.toml', "
+                                "'src/*.py', or '**/test_*.py'."
+                            )
+                        }
+                    },
+                    "required": ["pattern"],
+                    "additionalProperties": False
+                }
+            ),
+
+            Tool(
+                name="search_text_with_context",
+                description=(
+                    "Search for text across project files using ripgrep and return each matching "
+                    "line together with surrounding lines for additional context. Use this when "
+                    "you need to understand nearby code around a search result without reading "
+                    "the entire file. The search is case-insensitive and returns file paths, "
+                    "line numbers, matching lines, and the requested number of lines before and "
+                    "after each match."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "search_string": {
+                            "type": "string",
+                            "description": (
+                                "The text or pattern to search for across project files. "
+                                "Examples: 'user_permission', 'class Agent', or 'TODO'."
+                            )
+                        },
+                        "context_length": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": (
+                                "Number of surrounding lines to return before and after each "
+                                "matching line. For example, 5 returns up to 5 lines before "
+                                "and 5 lines after every match."
+                            )
+                        }
+                    },
+                    "required": ["search_string", "context_length"],
+                    "additionalProperties": False
+                }
+            )
+
         ]
 
     # 7 - cmd executor function 
@@ -900,14 +965,47 @@ class Agent:
         options = [
             "-n",
             "-i",
-            "-C",
-            "3",
             search_string
         ]
         subprocess_result = self._run_command("rg", options)
+        
+        if not subprocess_result:
+            return []
+        
+        return subprocess_result
+    
+    def _search_text_with_context(self, search_string: str, context_length: int):
+        options = [
+            "-n",
+            "-i",
+            "-C",
+            f"{context_length}",
+            search_string
+        ]
+        subprocess_result = self._run_command("rg", options)
+
+        if not subprocess_result:
+            return []
+        
         return subprocess_result
 
     # searching files 
+    def _search_file(self, pattern: str):
+        """
+        rg --files -g pattern
+        search for files with patterns
+        """
+        options = [
+            "--files",
+            "-g",
+            pattern
+        ]
+
+        subprocess_result = self._run_command("rg", options)
+        if not subprocess_result:
+            return []
+        
+        return subprocess_result
 
 
     def _execute_tools(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
@@ -972,6 +1070,13 @@ class Agent:
                 )
             elif tool_name == "search_text":
                 return self._search_text(tool_input["query"])
+            elif tool_name == "search_file":
+                return self._search_file(tool_input["pattern"])
+            elif tool_name == "search_text_with_context":
+                return self._search_text_with_context(
+                    tool_input["search_string"],
+                    tool_input["context_length"]
+                )
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
