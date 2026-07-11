@@ -4,7 +4,7 @@ import sys
 from rich import print
 from dataclasses import dataclass, asdict
 from pydantic import BaseModel
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 from pathlib import Path
@@ -259,6 +259,115 @@ class Agent:
                     },
                     "required":["package_names"],
                     "additionalProperties":False
+                }
+            ),
+
+            Tool(
+                name="uv_run_script",
+                description=(
+                    "Run a specific Python script file inside the project's uv-managed "
+                    "environment. Use this when a Python file such as main.py, script.py, "
+                    "or scripts/setup.py needs to be executed. The user will be asked for "
+                    "permission before execution. Do not use this tool to bypass denied "
+                    "operations, security restrictions, or dedicated tools."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "script_path": {
+                            "type": "string",
+                            "description": (
+                                "Path to the Python script to execute, relative to the "
+                                "project root. Example: 'main.py' or 'scripts/setup.py'."
+                            )
+                        },
+                        "arguments": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": (
+                                "Optional command-line arguments passed directly to the "
+                                "Python script. Example: ['--verbose', '--port', '8000']."
+                            )
+                        }
+                    },
+                    "required": ["script_path"],
+                    "additionalProperties": False
+                }
+            ),
+
+            Tool(
+                name="uv_run_module",
+                description=(
+                    "Run an importable Python module using 'python -m' inside the project's "
+                    "uv-managed environment. Use this for modules designed to be executed "
+                    "through Python's module system, such as pytest or project modules. "
+                    "The user will be asked for permission before execution. Do not use "
+                    "this tool to bypass script execution restrictions, denied operations, "
+                    "or other security boundaries."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "module_name": {
+                            "type": "string",
+                            "description": (
+                                "Fully qualified importable Python module name to execute. "
+                                "Examples: 'pytest', 'http.server', or 'package.module'."
+                            )
+                        },
+                        "arguments": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": (
+                                "Optional command-line arguments passed to the module. "
+                                "Example: ['tests/', '-v']."
+                            )
+                        }
+                    },
+                    "required": ["module_name"],
+                    "additionalProperties": False
+                }
+            ),
+
+            Tool(
+                name="uv_run_command",
+                description=(
+                    "Run a command-line executable available inside the project's "
+                    "uv-managed environment. Use this for development tools such as pytest, "
+                    "ruff, mypy, or other legitimate project CLI commands. The user will "
+                    "be asked for permission before execution. Never use this tool to run "
+                    "shell interpreters, destructive system commands, chain commands, "
+                    "perform command substitution, or bypass denied operations and security "
+                    "restrictions. Prefer dedicated tools whenever one exists."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": (
+                                "Name of the executable to run. Examples: 'pytest', "
+                                "'ruff', or 'mypy'. Do not include arguments in this field."
+                            )
+                        },
+                        "arguments": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": (
+                                "Optional arguments passed directly to the executable. "
+                                "Example for 'ruff': ['check', '.']. Example for 'pytest': "
+                                "['tests/', '-v']."
+                            )
+                        }
+                    },
+                    "required": ["command"],
+                    "additionalProperties": False
                 }
             ),
 
@@ -534,7 +643,81 @@ class Agent:
         ]
 
         return self._run_command("uv", options)
+    
+    def _uv_lock(self):
+        """
+        Generates or updates uv.lock, resolving exact dependency versions. 
+        Useful after dependency changes to ensure reproducible installations.
+        """
 
+        if user_permission("uv", "lock") != True:
+            return f"User Permission Denied"
+        
+        subprocess_result = self._run_command("uv", ["lock"])
+        return subprocess_result
+    
+    def _uv_run_script(self, script_path: str, arguments: Optional[list[str]] = None):
+        """
+        runs a specific python script 
+        """
+        arguments = arguments or []
+
+        if not user_permission(
+            "Run Python script",
+            f"{script_path} {' '.join(arguments)}",
+        ):
+            return "User permission denied."
+
+        options = [
+            "run",
+            script_path,
+            *arguments,
+        ]
+
+        return self._run_command("uv", options)
+    
+    def _uv_run_module(self, module_name: str, arguments: Optional[list[str]]= None):
+        """
+        run an importable python module
+        """
+        arguments = arguments or []
+
+        if not user_permission(
+            "Run Python module",
+            f"{module_name} {' '.join(arguments)}",
+        ):
+            return "User permission denied."
+
+        options = [
+            "run",
+            "python",
+            "-m",
+            module_name,
+            *arguments,
+        ]
+
+        return self._run_command("uv", options)
+    
+    def _uv_run_command(self, command: str, arguments: Optional[list[str]]= None):
+        """
+        run command line tools like mypy, ruff, pytests
+        """
+        arguments = arguments or []
+
+        if not user_permission(
+            "Run command",
+            f"{command} {' '.join(arguments)}",
+        ):
+            return "User permission denied."
+
+        options = [
+            "run",
+            command,
+            *arguments,
+        ]
+
+        return self._run_command("uv", options)
+    
     # 5 - create tools for the agent here
     def _read_file(self, path: str) -> str:
         path = check_project_root(path)
@@ -731,6 +914,21 @@ class Agent:
                 return self._uv_add(tool_input["package_names"])
             elif tool_name == "uv_remove":
                 return self._uv_remove(tool_input["package_names"])
+            elif tool_name == "uv_run_script":
+                return self._uv_run_script(
+                    tool_input["script_path"],
+                    tool_input["arguments"]
+                )
+            elif tool_name == "uv_run_module":
+                return self._uv_run_module(
+                    tool_input["module_name"],
+                    tool_input["arguments"]
+                )
+            elif tool_name == "uv_run_command":
+                return self._uv_run_command(
+                    tool_input["command"],
+                    tool_input["arguments"]
+                )
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:

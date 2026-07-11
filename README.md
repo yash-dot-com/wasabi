@@ -41,6 +41,7 @@ Prompt user [y/N]
    ↓           ↓
 Execute       Deny
 ```
+- adding uv lock, uv run script, module and command - scoping the uv run command to avoid misuse by agent. lock for resolving dependencies, run scripts to run python files, run module to run importable files, run command to run ruff linter, pytest, mypy basically command line tools
 - Text search - 
 - File discovery
 - Precise reads
