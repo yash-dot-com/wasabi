@@ -1,10 +1,11 @@
-<p align="center">
-  <img src="static/Wasabi-Header.png" width="1100" alt="Wasabi Logo">
-</p>
 
 ## Wasabi
 
 A secure, Python-first coding agent focused on understanding, modifying and reasoning about software projects with minimal tool surface and maximum code awareness.
+
+<p align="center">
+  <img src="static/Wasabi-Header.png" width="1100" alt="Wasabi Logo">
+</p>
 
 ## Design Philosophy
 
