@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 from src.tools.security_tools.project_root_checker import check_project_root
 from src.system_check import security_scan
+from src.user_permission import user_permission
 import json
 
 load_dotenv()
@@ -275,6 +276,10 @@ class Agent:
     def _run_command(self, tool: str, args: list[str]) -> CommandResult:
         allowed_tools = ["git", "python3", "uv", "rg", "find"]
 
+        # need to scope permission prompt only for destructive cmds / tools
+        # if user_permission(tool, "") != True:
+        #     return f"User Permission Denied"
+
         if tool not in allowed_tools:
             return f"ERROR : access denied; only git, python3, uv, rg, find are accessible"
         
@@ -474,6 +479,9 @@ class Agent:
             return f"Error listing the files: {str(e)}"
         
     def _delete_file(self, file_path: str) -> str:
+        if user_permission("delete file", file_path) != True:
+            return f"User Permission Denied"
+        
         try:
             file_path = Path(file_path)
             resolved = (project_root / file_path).resolve()
