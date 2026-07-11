@@ -225,6 +225,44 @@ class Agent:
             ),
 
             Tool(
+                name="uv_add",
+                description="add python packages to project using uv",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "package_names": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "List of Python package names to add to the project."
+                        }
+                    },
+                    "required":["package_names"],
+                    "additionalProperties":False
+                }
+            ),
+
+            Tool(
+                name="uv_remove",
+                description="remove python packages from project using uv",
+                parameters={
+                    "type":"object",
+                    "properties": {
+                        "package_names": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "List of Python package names to be removed from the project."
+                        }
+                    },
+                    "required":["package_names"],
+                    "additionalProperties":False
+                }
+            ),
+
+            Tool(
                 name="git_diff_summary",
                 description="get a quick statistic summary of all the changed files.",
                 parameters={}
@@ -689,6 +727,10 @@ class Agent:
                 return self._uv_sync()
             elif tool_name == "uv_version":
                 return self._uv_version()
+            elif tool_name == "uv_add":
+                return self._uv_add(tool_input["package_names"])
+            elif tool_name == "uv_remove":
+                return self._uv_remove(tool_input["package_names"])
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
