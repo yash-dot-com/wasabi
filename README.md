@@ -25,9 +25,23 @@ How the Loop Works
 5. AI fixes errors and submits new code
 6. Repeat until no errors remain (max 5 iterations)
 
-## Day 1 - 9th july 2026
-- uv tools
-- Text search
+## Day 1 - 11th july 2026
+- uv tools - add, remove, lock file remains - there is vulnerability with exposing the lock files because that exposes dependency hacking 
+- add user permission flow 
+```
+Agent requests sensitive tool
+        ↓
+Tool checks: requires_permission?
+        ↓
+      Yes
+        ↓
+Prompt user [y/N]
+    ↙         ↘
+   y           n
+   ↓           ↓
+Execute       Deny
+```
+- Text search - 
 - File discovery
 - Precise reads
 - Exact replacement
@@ -37,7 +51,7 @@ How the Loop Works
 - Script permissions
 - System-prompt hardening
 
-## Day 2 - 10th july 2026
+## Day 1 - 11th july 2026
 - Tree-sitter integration
 - Repository discovery
 - Global symbol index
@@ -46,7 +60,7 @@ How the Loop Works
 - Initial WASABI.md
 - Incremental context update- - s
 
-## Day 3 - 11th july 2026
+## Day 2 - 12th july 2026
 - Complete surgical-edit system
 - Symbol reads
 - Symbol replacement
@@ -55,7 +69,7 @@ How the Loop Works
 - LSP client
 - Persistent LSP server loop
 
-## Day 4 - 12th july 2026
+## Day 2 - 12th july 2026
 - LSP diagnostic loop
 - Edit validation
 - Automatic rollback
@@ -65,6 +79,7 @@ How the Loop Works
 - README
 - Architecture documentation
 - Demo
+- add better TUI (cosmetic changes)
 
 ## states used in agent
 - tree sitter index : quick code traversal & understanding

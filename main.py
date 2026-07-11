@@ -456,6 +456,7 @@ class Agent:
         subprocess_result = self._run_command("uv", ["sync"])
         return subprocess_result
     
+    # add in tool description and executor 
     def _uv_add(self, package_names: list[str]) -> str:
         """
         add single package or multiple packages to the project
@@ -475,6 +476,7 @@ class Agent:
 
         return self._run_command("uv", options)
     
+    # add in tool description and executor
     def _uv_remove(self, package_names: list[str]):
         """
         remove single package or multiple packages from the project
