@@ -420,6 +420,32 @@ class Agent:
                     "additionalProperties":False
                 }
             ),
+
+            Tool(
+                name="search_text",
+                description=(
+                    "Search for text across files in the project using ripgrep. "
+                    "Use this tool to locate where a function, class, variable, string, "
+                    "configuration value, error message, or any other text appears in the codebase. "
+                    "Returns the matching file path, exact line number, and matched line content. "
+                    "Use the returned file path and line number with precise read tools to inspect "
+                    "the relevant code instead of reading entire files unnecessarily."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": (
+                                "The text or pattern to search for across project files. "
+                                "Examples: 'user_permission', 'class Agent', or 'TODO'."
+                            )
+                        }
+                    },
+                    "required": ["query"],
+                    "additionalProperties": False
+                }
+            ),
         ]
 
     # 7 - cmd executor function 
@@ -868,6 +894,21 @@ class Agent:
         except Exception as e:
             print(f"[TOOL EXECUTION FAILED]\n")
             return f"Error editing file: {str(e)}"
+        
+    # searching text 
+    def _search_text(self, search_string: str):
+        options = [
+            "-n",
+            "-i",
+            "-C",
+            "3",
+            search_string
+        ]
+        subprocess_result = self._run_command("rg", options)
+        return subprocess_result
+
+    # searching files 
+
 
     def _execute_tools(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
         """ try-catch block for executing tools selected by the agent using conditions """
@@ -929,6 +970,8 @@ class Agent:
                     tool_input["command"],
                     tool_input["arguments"]
                 )
+            elif tool_name == "search_text":
+                return self._search_text(tool_input["query"])
             else:
                 return f"unknown tool: {tool_name}, choose from specified tools only."
         except ValueError as e:
@@ -1047,5 +1090,5 @@ if __name__ == "__main__":
             print("-"*90)
 
         except KeyboardInterrupt:
-            print(f"\nEXITING\n")
+            print(f"\n [EXITING] \n")
             break

@@ -41,9 +41,33 @@ Prompt user [y/N]
    ↓           ↓
 Execute       Deny
 ```
-- adding uv lock, uv run script, module and command - scoping the uv run command to avoid misuse by agent. lock for resolving dependencies, run scripts to run python files, run module to run importable files, run command to run ruff linter, pytest, mypy basically command line tools
-- Text search - 
-- File discovery
+- [DONE] : adding uv lock, uv run script, module and command - scoping the uv run command to avoid misuse by agent. lock for resolving dependencies, run scripts to run python files, run module to run importable files, run command to run ruff linter, pytest, mypy basically command line tools 
+- [DONE] : Text search - using ripgrep as fast search utility
+- about ripgrep : rg "search_string" -n : returns files in which the search string is present along with line number on which it is present
+```js
+-n          Show line numbers
+-H          Always show file paths
+-i          Case-insensitive search
+-F          Treat query as literal text, not regex
+-C 3        Show 3 lines of context around matches
+-g "*.py"   Search only Python files
+--hidden    Include hidden files
+```
+- --json mode : outputs a json string for result we are implementing json results
+- JSON lines describing each match, including: file path, matched text, line number, byte offset
+- [CURRENTLY] : File discovery using ripgrep 
+```js
+Agent wants to find:
+- all Python files
+- a specific filename
+- test files
+- config files
+
+Example usage: 
+find_files("*.py")
+find_files("test_*.py")
+find_files("pyproject.toml")
+```
 - Precise reads
 - Exact replacement
 - Insert operations
@@ -51,6 +75,7 @@ Execute       Deny
 - File hashes
 - Script permissions
 - System-prompt hardening
+- implement a way to make sure all the dependencies are available for the agent, need to create single installation script to install dependencies as well as the agent code.
 
 ## Day 1 - 11th july 2026
 - Tree-sitter integration
