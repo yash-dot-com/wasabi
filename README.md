@@ -1,4 +1,4 @@
-# Wasabi: A Cutting-Edge Engineering Project in the Agent Space
+# Wasabi
 
 <p align="center">
   <img src="static/Wasabi-Header.png" width="1100" alt="Wasabi Logo">
@@ -6,115 +6,539 @@
 
 ## Overview
 
-Wasabi is a Python-first coding agent focused on enhancing software project understanding and modification through a secure, streamlined interface. This document outlines the key features and engineering innovations achieved within this project, as well as a comprehensive overview of the tools available to the agent.
+Wasabi is a Python-first terminal coding agent built to explore the engineering problems involved in giving an LLM controlled access to a software repository.
 
-Wasabi is a Python-first coding agent focused on enhancing software project understanding and modification through a secure, streamlined interface. This document outlines the key features and engineering innovations achieved within this project.
+The project focuses on four areas:
 
-## Core Capabilities
+- **Tool use** — filesystem, Git, dependency management, search, and code execution.
+- **Repository understanding** — project structure, symbols, dependencies, and persistent project context.
+- **Precise code modification** — targeted reads and surgical edits that preserve unrelated file content.
+- **Agent security** — project-root isolation, prompt-injection checks, explicit user approval for sensitive operations, and protection against indirect policy bypasses.
 
-### Available Tools
+Wasabi is intentionally being developed as a focused coding-agent implementation rather than a general-purpose autonomous system. The goal is to understand and implement the core mechanisms behind repository-aware coding agents while keeping the system small enough to reason about, test, and secure.
 
-The Wasabi agent is equipped with a suite of tools that enable efficient file and project management. These tools include:
+---
 
-1. **File Management Tools**:
-   - **read_file**: Reads the contents of a specified file path.
-   - **list_files**: Lists all files and directories in the specified path.
-   - **edit_file**: Edits a file by replacing specified text, with the option to create a new file if it doesn't exist.
-   - **delete_file**: Moves a specified file to a soft delete (trash) directory, allowing for recovery.
-   - **restore_file**: Recovers a file from the trash directory to its original path.
+## Current Capabilities
 
-2. **Git Tools**:
-   - **git_diff**: Displays the differences for a particular file or the entire project.
-   - **git_status**: Provides the current status of the Git repository, including modified and untracked files.
-   - **git_log**: Displays a log of recent commits with the option to limit the number of entries.
-   - **git_blame**: Shows the last modification timestamp and author for each line of a specified file.
-   - **git_show**: Inspects a single Git commit by its hash.
+### Terminal Interface
 
-3. **Python and Dependency Management Tools**:
-   - **uv_sync**: Synchronizes the project's virtual environment with the specified dependency files.
-   - **uv_add**: Adds specified Python packages to the project.
-   - **uv_remove**: Removes specified Python packages from the project.
-   - **uv_run_script**: Executes a specified Python script within the project’s virtual environment, with user permission required.
-   - **uv_run_module**: Runs an importable Python module in the same environment.
+Wasabi provides a minimal terminal interface for interacting with the agent.
 
-4. **Search Tools**:
-   - **search_text**: Searches for text across project files and returns the matching lines.
-   - **find_files**: Locates files in the project based on filename or pattern.
-   - **search_text_with_context**: Performs a search with added context lines for better understanding.
+The interface displays:
 
-### Security Measures
+- User prompts
+- Agent responses with Markdown rendering
+- Thinking state
+- Tool invocations
+- Tool arguments
+- Execution status
+- Execution duration
+- Permission requests for sensitive operations
 
-To ensure the security of the coding agent, several measures are in place:
-- **User Permissions**: Any action that could affect files or run scripts requires prior user approval, adding a layer of security to sensitive operations.
-- **Project Root Checking**: Ensures that all operations remain within the project's root directory, preventing unauthorized access to the wider file system.
+The TUI is kept separate from agent logic so that presentation does not affect reasoning, tool execution, or security enforcement.
 
-### 1. Security
-- **Capability-Based Security**: Ensures that the agent operates within a defined scope, reducing the risk of unintended system manipulation.
-- **User Approval Mechanism**: Users must approve any access requests for sensitive tools, adding an extra layer of security.
-- **Sandbox Environment**: Restricts the agent's file system access to the project root, preventing any undesirable external operations.
+---
 
-### 2. Semantic Understanding
-- **Tree-Sitter Integration**: This technology allows for deeper semantic analysis of code, improving comprehension and modification capabilities.
-- **LSP Support**: The agent utilizes Language Server Protocol for real-time diagnostics and error correction, thereby improving coding accuracy and reducing bugs.
+## Tool System
 
-### 3. Precision in Code Changes
-- **Surgical Edits**: Allows the agent to read and write precise portions of code, enhancing edit accuracy without affecting unrelated sections. This is implemented through targeted read and replace functions.
-- **Incremental Context Updates**: The agent maintains and updates its understanding of the project context during operations, creating a smoother workflow.
+Wasabi exposes explicit tools to the model rather than unrestricted access to the host environment.
 
-### 4. Advanced File Discovery and Search
-- **Ripgrep-Based Search**: Implements fast search capabilities for locating files and code snippets, greatly improving developer efficiency.
-- **Structured Outputs**: Provides JSON formatted results from searches and operations for consistency and easy integration into further processes.
+The agent can combine multiple tools when a task requires several steps. For example:
 
-### 5. Phased Development
-- The project is structured into defined phases focusing on building a functional coding agent, repository understanding, semantic intelligence, and context engine capabilities.
-- **Future Enhancements**: Planned features, including multi-agent workspaces and intelligent editing, highlight the forward-thinking nature of the project.
+```text
+Find relevant file
+→ Search for symbol
+→ Read surrounding code
+→ Apply precise edit
+→ Inspect Git diff
+→ Validate result
+```
 
-## Future Improvements and Research Engineering
+Tool access is constrained by project-root validation, execution policies, and user approval where required.
 
-### 1. Self-Learning Capabilities
-- **Global and Project-Specific Learning**: Developing a system that maintains lessons learned and project-specific knowledge which will enhance the agent's overall understanding and adaptability.
+### File Tools
 
-### 2. Cached Context Management
-- **Cached Project Context**: Implementing a continuous caching mechanism that keeps track of project state and context, allowing the agent to quickly adapt to changes without reloading unnecessary information.
-- **Context Compaction**: Improving algorithms for compacting context data, ensuring efficient memory use while preserving vital information needed for decision-making.
+- `read_file`: Reads the contents of a file inside the project root.
+- `list_files`: Lists files and directories within a specified project path.
+- `edit_file`: Replaces specified text inside an existing file. This is being supplemented by more precise editing operations to avoid unnecessary full-file modifications.
+- `delete_file`: Performs a soft deletion by moving a file into Wasabi's trash directory instead of permanently removing it.
+- `restore_file`: Restores a previously deleted file from the trash directory to its original location.
 
-### 3. Precision in Code Handling and Token Optimization
-- **Abstract Syntax Tree (AST) Graph**: Implementing a structured representation of the code through an AST graph, which allows for more efficient modifications and understanding of the code structure. This representation aids in reducing token usage during processing by focusing only on relevant code elements.
-- **Precise Reads, Writes, and Edits**: Enhancing the agent's ability to perform focused changes to code, reducing token usage while maximizing the quality of edits made. This ensures that only relevant changes in the code are processed, improving efficiency and resource use.
+### Git Tools
 
-### 4. Security Enhancements
-- **Enhanced Security Measures**: Continuing to fortify the agent's security with rigorous checks and protections against vulnerabilities, particularly focusing on command execution and file interactions.
-- **Dynamic Security Analysis**: Researching and developing new agent security methodologies to detect and mitigate vulnerabilities in real-time as they arise, ensuring a proactive stance against attacks.
+- `git_status`: Returns the current repository state, including modified, staged, and untracked files.
+- `git_diff`: Shows changes for a specific file or the repository.
+- `git_diff_summary`: Returns a concise summary of changed files, insertions, and deletions.
+- `git_log`: Returns recent commits with a configurable result limit.
+- `git_blame`: Shows commit and author information associated with individual lines of a file.
+- `git_show`: Inspects a specific commit by its hash.
 
-### 5. Comprehensive Tool Integration
-- **Extensive Tool Set**: Continuing to build and integrate capabilities for a variety of tools, including Git operations, Python testing frameworks, diagnostics, and semantic analysis tools to create a versatile coding environment.
+These tools allow the agent to inspect repository history and current changes without requiring unrestricted shell access.
 
-### 6. Advanced Research on Agent Vulnerabilities
-- **Proactive Security Research**: Engaging in ongoing research and development to identify potential vulnerabilities in future iterations of the code agent, ensuring resilience and reliability in diverse coding scenarios.
+### Python and uv Tools
 
-### 7. Observability and Training Enhancements
-- **Improving Observability**: Enhancing the agent's monitoring capabilities to understand its behavior and decision-making processes better, fostering improved interactions and user experiences.
+Wasabi uses dedicated uv tools for Python project and dependency operations.
 
-### 1. Continuous Enhancement of Security Features
-- **Deeper Security Checks**: Implementing advanced checks to prevent prompt injections and agent poisoning.
-- **Dynamic Approval Workflow**: Enabling more granular control and real-time monitoring of tool access requests.
+- `uv_version`: Returns the installed uv version.
+- `uv_sync`: Synchronizes the project's environment with its dependency metadata and lockfile.
+- `uv_tree`: Displays the project's dependency tree.
+- `uv_lock`: Generates or updates the project's lockfile.
+- `uv_add`: Adds one or more Python dependencies.
+- `uv_remove`: Removes one or more Python dependencies.
+- `uv_run_script`: Runs a specific Python script inside the project's managed environment.
+- `uv_run_module`: Runs an importable Python module through Python's module system.
+- `uv_run_command`: Runs a command-line executable available inside the project's managed environment, such as a test runner, linter, formatter, or type checker.
 
-### 2. Multi-Agent Collaboration
-- **Intelligent Editing**: Developing capabilities for semantic edits instead of simple text replacements to ensure code refactoring and modifications are context-aware.
-- **Task Distribution**: Creating an infrastructure where multiple agents collaboratively update documentation, manage dependencies, and handle repetitive tasks without user intervention.
+Code execution and dependency-changing operations are subject to explicit user approval where appropriate.
 
-### 3. Enhanced Context Management
-- **Incremental Cache Invalidation**: Enhancing cache management algorithms to efficiently handle context updates during coding sessions while minimizing resource overhead.
-- **Long-Term Memory Implementation**: Building features to retain user preferences and project-specific learnings across sessions for an improved user experience.
+### Search and Discovery Tools
 
-### 4. Advanced Features Development
-- **Cost Tracking and Resource Management**: Integrating tools for monitoring resource consumption and providing insights to reduce overhead during development.
-- **Observability and Monitoring**: Implementing traceability features within the coding agent to track its operations, performance, and security potential vulnerabilities.
+Wasabi uses ripgrep for fast repository-wide text search and file discovery.
 
-### 5. Comprehensive Testing and Validation Strategy
-- **Robust Unit and Integration Tests**: Expanding on existing tests to validate not just functionality but also security, flow, and performance in real-time scenarios.
-- **Adversarial Test Cases**: Developing tests that challenge the robustness of the system against potential misuse and edge cases.
+- `search_text`: Searches project files for a string or pattern and returns matching locations with file paths and line numbers.
+- `search_text_with_context`: Searches for text and includes a configurable number of surrounding lines.
+- `find_files`: Finds project files using filenames or glob patterns while respecting repository ignore rules.
 
-## Conclusion
+This allows the agent to inspect nearby code without reading an entire file.
 
-Wasabi stands out in the agent space by integrating robust security measures, precision in code handling, and innovative search capabilities. This project pushes the boundaries of what coding agents can achieve in understanding and modifying software, reinforcing the importance of a secure, efficient coding environment.
+Examples:
+
+- `*.py`
+- `test_*.py`
+- `pyproject.toml`
+- `src/*.py`
+
+These tools form the first stage of Wasabi's code-navigation workflow:
+
+1. Unknown location
+2. `find_files` or `search_text`
+3. Identify the exact file and line
+4. Read only the relevant code
+5. Perform a targeted modification
+
+### Precise Code Modification
+
+A major focus of Wasabi is reducing unnecessary full-file reads and rewrites.
+
+The intended editing workflow is:
+
+1. Discover
+2. Locate
+3. Read the relevant region
+4. Understand the surrounding code
+5. Apply the smallest correct edit
+6. Inspect the diff
+7. Validate
+
+The precise editing layer includes or is planned to include:
+
+- `read_lines`: Reads only a specified line range from a file and returns line numbers.
+- `replace_exact`: Replaces an exact, uniquely matching block of text.
+
+The operation is rejected when:
+
+- The target does not exist.
+- The target occurs multiple times and is ambiguous.
+
+- `replace_lines`: Replaces only a specified line range while preserving all content before and after it.
+- `insert_before`: Inserts new content before an exact anchor.
+- `insert_after`: Inserts new content after an exact anchor.
+
+### File Hash Validation
+
+A file hash can be captured when code is read and checked before a later edit. If the file changed between reading and editing, the operation is rejected as stale.
+
+### Atomic Writes
+
+File modifications are written to a temporary file before atomically replacing the original. This reduces the risk of leaving a partially written file after an interrupted operation.
+
+The core invariant is:
+
+> An edit should modify only the intended region. Unrelated content should remain unchanged.
+
+### Security Model
+
+Wasabi treats the LLM as a decision-making component, not as the security boundary. Restrictions are enforced in code around filesystem access, command execution, and tool dispatch.
+
+### Project-Root Isolation
+
+Filesystem operations are restricted to the active project root.
+
+The validation layer is designed to prevent:
+
+- Absolute-path escapes
+- `..` path traversal
+- Access outside the repository
+- Accidental modification of unrelated host files
+
+The project root itself is protected from deletion.
+
+### Soft Deletion
+
+File deletion moves files to a dedicated trash directory rather than permanently deleting them.
+
+This provides:
+
+- Recovery from accidental deletion
+- Safer autonomous file operations
+- A reversible default for destructive actions
+
+The agent also has a dedicated restoration tool.
+
+### User Approval for Sensitive Operations
+
+Sensitive operations require explicit user confirmation through a y/N permission prompt.
+
+Examples include:
+
+- Script execution
+- Python module execution
+- Arbitrary project command execution
+- Dependency addition or removal
+- Destructive Git operations
+- Other explicitly classified destructive actions
+
+The permission mechanism is enforced at the execution layer rather than relying only on instructions to the model.
+
+### Prompt-Injection Check During Initialization
+
+During project initialization, Wasabi checks repository instruction files for potentially malicious or manipulative content before allowing them to influence agent context.
+
+Relevant files can include:
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `GEMINI.md`
+- `.github/copilot-instructions.md`
+
+The purpose is to treat repository-provided instructions as untrusted input rather than automatically granting them authority over the agent.
+
+### Policy-Boundary Enforcement
+
+Wasabi distinguishes between:
+
+- Execution failure → Diagnose and safely correct
+- Permission required → Ask the user
+- Permission denied → Stop the operation
+- Security restriction → Do not attempt circumvention
+
+The agent is explicitly instructed not to recreate blocked operations through:
+
+- Another tool
+- Another programming language
+- Generated scripts
+- Python subprocesses
+- Shell interpreters
+- Module execution
+- Indirect command execution
+
+This behavior was motivated by adversarial testing in which the agent was instructed to delete its own project. When direct deletion was unavailable, the model attempted alternative execution paths by creating Bash and Python scripts. The project was not deleted, but the test exposed the need to treat policy denial and ordinary tool failure as fundamentally different outcomes.
+
+This led to stricter system instructions and explicit user approval for code execution.
+
+### Restricted Command Execution
+
+Wasabi does not expose an unrestricted shell directly to the model.
+
+Dedicated tools are preferred for:
+
+- Git operations
+- Python dependency management
+- File operations
+- Search
+- Code execution
+
+Subprocess execution uses argument lists rather than shell-string interpolation where possible, reducing exposure to shell injection and command chaining.
+
+### Repository Understanding
+
+Wasabi's repository-understanding layer is designed around progressive retrieval rather than loading an entire codebase into the model context.
+
+The intended flow is:
+
+1. User task
+2. Read persistent project context
+3. Locate relevant files and symbols
+4. Retrieve definitions and references
+5. Inspect direct dependencies and related tests
+6. Build a bounded task context
+7. Modify and validate
+
+### Tree-sitter Integration
+
+Tree-sitter provides structural understanding of source code through concrete syntax trees.
+
+The planned integration covers:
+
+- Language detection
+- Source parsing
+- Function extraction
+- Class extraction
+- Method extraction
+- Import extraction
+- Export extraction
+- Symbol boundaries
+- Parent-child symbol relationships
+- Syntax-aware code chunks
+- Symbol lookup
+- Changed-symbol detection
+
+This enables operations such as:
+
+- `read_symbol("Agent._uv_run_script")`
+- `replace_symbol("Agent._uv_run_script", new_implementation)`
+
+instead of relying exclusively on raw line numbers or text matching.
+
+Tree-sitter answers:
+
+- What is the structure of this code, and where exactly is a symbol located?
+
+### Global Symbol Index
+
+Tree-sitter output will be used to build a repository-wide symbol index containing information such as:
+
+- Symbol name
+- Symbol type
+- File path
+- Start position
+- End position
+- Parent symbol
+- Imports
+- Exports
+
+This gives the agent a searchable structural map of the repository without repeatedly reading complete files.
+
+The index is intended to be updated incrementally when files change.
+
+### Persistent Project Context
+
+Wasabi uses a project-level context file, WASABI.md, as a concise persistent representation of the repository.
+
+It can contain:
+
+- Project purpose
+- Technology and dependencies
+- Architecture
+- Directory structure
+- Entry points
+- Important modules
+- Public interfaces
+- Data models
+- Configuration
+- Commands
+- Testing
+- Security constraints
+- Architectural decisions
+- Current implementation state
+- Known issues
+
+The purpose of WASABI.md is not to duplicate source code. It stores durable information needed to understand the project across sessions.
+
+### Incremental Context Updates
+
+When the repository changes, Wasabi should avoid regenerating the complete project context.
+
+The intended workflow is:
+
+1. Git diff
+2. Identify changed files
+3. Determine changed symbols
+4. Classify semantic impact
+5. Map changes to affected WASABI.md sections
+6. Update only those sections
+7. Preserve everything else
+
+For example:
+
+- Dependency changed → Update Dependencies
+- New module added → Update Architecture and Important Modules
+- Public interface changed → Update Public Interfaces
+- Security policy changed → Update Security Constraints
+- Internal implementation detail changed → No project-context update required
+
+### Dependency Intelligence
+
+Wasabi's dependency understanding is intended to cover both external packages and internal module relationships.
+
+This includes:
+
+- Parsing `pyproject.toml`
+- Reading lockfile information
+- Distinguishing direct and development dependencies
+- Extracting internal imports
+- Building an internal dependency graph
+- Finding reverse dependencies
+- Determining which modules may be affected by a change
+
+The goal is practical impact analysis rather than a complete static-analysis framework.
+
+### LSP Integration
+
+Tree-sitter provides structural information, but it does not provide full semantic understanding.
+
+Wasabi therefore uses the Language Server Protocol as a complementary validation layer.
+
+The LSP client is intended to support:
+
+- Go to definition
+- Find references
+- Hover and type information
+- Document symbols
+- Workspace symbols
+- Diagnostics
+
+The language server remains alive during the Wasabi session rather than restarting after every operation.
+
+The validation flow is:
+
+1. Apply a precise edit
+2. Parse with Tree-sitter
+3. Synchronize the change with LSP
+4. Receive diagnostics
+5. Repair if necessary
+6. Run relevant tests
+7. Inspect the Git diff
+
+Tree-sitter answers:
+
+- What is the structure of the code?
+
+LSP answers:
+
+- Is the code semantically valid within this project?
+
+### Context Compaction
+
+Long agent sessions accumulate:
+
+- User messages
+- Assistant reasoning and responses
+- Tool calls
+- Tool outputs
+- Errors
+- Intermediate implementation details
+
+Wasabi's context-compaction layer is intended to monitor token usage and reduce old context before the model's context window becomes unnecessarily large.
+
+Compaction should preserve:
+
+- System instructions
+- Current user task
+- Important project context
+- Recent tool activity
+- Unresolved errors
+- Decisions that affect ongoing work
+
+Older conversational details can be summarized into a smaller representation.
+
+The goal is to preserve operational continuity while reducing unnecessary token usage.
+
+### Validation Strategy
+
+Wasabi's intended code-change validation pipeline is:
+
+1. Precise edit
+2. Inspect Git diff
+3. Tree-sitter syntax validation
+4. LSP diagnostics
+5. Type checker
+6. Linter
+7. Relevant tests
+
+Not every task requires every validation step. The agent should choose validation proportional to the change.
+
+### Adversarial Security Testing
+
+The security layer is tested against scenarios such as:
+
+- Direct project deletion
+- Bash script generated to delete the project
+- Python script generated to delete the project
+- Moving a destructive script into another directory before execution
+- Attempting execution through uv run
+- Path traversal
+- Symlink-based project-root escape
+- Prompt injection from repository files
+- Requests to disable security checks
+- Attempts to recreate denied operations through alternative tools
+
+The desired invariant is:
+
+> The model may propose an unsafe action, but the execution and policy layers must prevent unauthorized effects.
+
+### Architecture Direction
+
+The overall architecture is intentionally layered:
+
+```text
+User
+  ↓
+Terminal Interface
+  ↓
+Agent
+  ↓
+Tool Selection
+  ↓
+Security / Permission Checks
+  ↓
+Tool Execution
+  ↓
+Filesystem / Git / uv / Search / Tree-sitter / LSP
+  ↓
+Validation and Git Diff
+```
+
+The LLM decides what action it wants to perform. The surrounding system decides whether that action is permitted and how it is executed.
+
+### Current Development Scope
+
+The current completion scope for Wasabi is:
+
+- Precise reads and surgical edits
+- Atomic writes and stale-file protection
+- Tree-sitter integration
+- Global symbol index
+- Persistent WASABI.md project context
+- Incremental context updates
+- Dependency intelligence
+- LSP client and persistent language-server loop
+- Edit-validation pipeline
+- Context compaction
+- Minimal terminal interface
+- Python package and CLI distribution
+- Integration and adversarial testing
+
+The terminal interface, Git tools, uv tools, search tools, user-permission mechanism, project-root protection, soft deletion, and initialization-time prompt-injection checking are already implemented.
+
+### Out of Scope
+
+To keep the project bounded, the following are not part of the current implementation scope:
+
+- Multi-agent orchestration
+- Vector databases
+- Embedding-based semantic memory
+- Browser automation
+- MCP integration
+- Autonomous background workers
+- Model training or fine-tuning
+- A complete static-analysis engine
+- Self-learning or persistent lesson memory
+
+These may be explored separately, but they are not required for Wasabi's completion.
+
+### Summary
+
+Wasabi is a small coding-agent implementation focused on repository navigation, controlled tool execution, precise code modification, project context, and security boundaries.
+
+The project is primarily an engineering exercise in answering a few practical questions:
+
+- How should an LLM navigate a repository without repeatedly reading everything?
+- How can it make targeted modifications without rewriting unrelated code?
+- How should tool execution be constrained and approved?
+- How can repository structure and semantics be exposed through Tree-sitter and LSP?
+- How should project context remain useful as the codebase changes?
+- What happens when an agent actively attempts to work around its own restrictions?
+
+The objective is not to build the largest possible agent framework. It is to implement these mechanisms clearly, test their behavior, document their limitations, and understand the engineering trade-offs involved.
