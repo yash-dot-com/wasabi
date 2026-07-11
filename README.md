@@ -28,4 +28,4 @@ Wasabi is built around one central question:
 
 - **How can an AI agent be given enough capability to perform useful engineering work while keeping its execution controlled, observable, secure, and economical?**
 
-- The goal of the project is not to build the largest coding-agent framework. It is to directly implement and understand the systems behind practical agentic software: **tool orchestration, security boundaries, code intelligence, context efficiency, monitoring, secure execution of untrusted code and agent evaluation.**j
+- The goal of the project is not to build the largest coding-agent framework. It is to directly implement and understand the systems behind practical agentic software
