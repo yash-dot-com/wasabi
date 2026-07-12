@@ -74,13 +74,13 @@ Wasabi explores:
 ### Remaining 
 
 #### Precise Reads and Surgical Edits
-- [ ] Read exact line ranges with line numbers
-- [ ] Replace exact code blocks
-- [ ] Replace specific line ranges
-- [ ] Insert before an exact anchor
-- [ ] Insert after an exact anchor
-- [ ] Atomic writes
-- [ ] File-hash validation for stale edits
+- [x] Read exact line ranges with line numbers
+- [x] Replace exact code blocks
+- [x] Replace specific line ranges
+- [x] Insert before an exact anchor
+- [x] Insert after an exact anchor
+- [x] Atomic writes
+- [x] File-hash validation for stale edits
 
 #### Tree-sitter and Code Intelligence
 - [ ] Tree-sitter integration
@@ -90,12 +90,12 @@ Wasabi explores:
 - [ ] Precise symbol-level edits
 
 #### Project Context
-- [ ] Generate persistent `WASABI.md` project context
-- [ ] Keep architecture, important modules, dependencies and project decisions in context
+- [x] Generate persistent `WASABI.md` project context
+- [x] Keep architecture, important modules, dependencies and project decisions in context
 - [ ] Update only affected sections when the project changes
 
 #### Dependency Intelligence
-- [ ] Build internal module dependency relationships
+- [x] Build internal module dependency relationships
 - [ ] Identify reverse dependencies and affected modules
 
 #### LSP Integration
@@ -113,7 +113,7 @@ Wasabi explores:
 
 #### Distribution and Finalization
 - [ ] Create distributable Python package
-- [ ] Add CLI entry point
-- [ ] Final integration testing
-- [ ] Final adversarial security testing
-- [ ] README cleanup
+- [x] Add CLI entry point
+- [x] Final integration testing
+- [x] Final adversarial security testing
+- [x] README cleanup
