@@ -82,6 +82,58 @@ class Agent:
     def _get_project_root(self) -> str:
         cwd = Path.cwd().resolve().as_posix()
         return cwd
+    
+    def _ensure_project_context(self):
+        """
+        lazy load the repository context,
+        generate WASABI.md for the project if one doesn't already exists
+        or loads existing one
+        """
+        context_path = self._get_project_root() / "WASABI.md"
+
+        if context_path.exists():
+            return self._load_project_context()
+        
+        return self._generate_project_context()
+    
+    def _generate_project_context(self):
+        """
+        Invoke the agent internally with a specialized prompt to inspect
+        the repository and create WASABI.md.
+        """
+
+        project_context_prompt = """Generate a concise WASABI.md containing durable project context.
+                                    Inspect the repository using available tools before writing it.
+
+                                    Include only:
+                                    - project overview
+                                    - architecture
+                                    - important modules
+                                    - dependencies
+                                    - entry points
+                                    - commands
+                                    - security constraints
+                                    - important engineering decisions
+
+                                    Do not:
+                                    - document every file
+                                    - copy source code
+                                    - include temporary implementation details
+                                    - include conversation history
+                                    - speculate about code you have not inspected
+                                    - make the document unnecessarily verbose
+
+                                    The purpose of WASABI.md is to provide compact, persistent context for future agent sessions.
+                                    """
+        
+        # implement recursive exploration for file systems 
+        self.chat(f"{project_context_prompt}")
+        return f"project context created successfully"
+
+    def _load_project_context(self):
+        context_path = self._get_project_root() / "WASABI.md"
+        return self._read_file(context_path)
+
         
     def _setup_tools(self):
         self.tools = [

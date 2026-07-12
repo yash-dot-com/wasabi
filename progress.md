@@ -69,7 +69,7 @@ find_files("*.py")
 find_files("test_*.py")
 find_files("pyproject.toml")
 ```
-- [CURRENT]: SURGICAL EDITS, READS & WRITES
+- [LATER]: SURGICAL EDITS, READS & WRITES
 ```
 User: "Add timeout support to _uv_run_script"
 
@@ -101,13 +101,47 @@ replace_exact(
 Only that exact section changes.
 Everything else remains untouched.
 ```
-- clean and minimal TUI for wasabi
+- [CURRENTLY] : lazy project context loading 
+```
+User asks normal question
+→ Don't load WASABI.md
+
+User asks implementation/codebase task
+→ Check WASABI.md
+
+    Exists?
+    → Load it into current agent context
+
+    Doesn't exist?
+    → Internally invoke agent with specialized context-generation prompt
+    → Agent explores repository using existing tools
+    → Agent creates WASABI.md
+    → Load it into current task context
+```
+- implementation 
+```
+_ensure_project_context()
+        ↓
+WASABI.md exists?
+    ├── Yes → Load and return
+    └── No
+          ↓
+_run_internal_task(context_prompt)
+          ↓
+Agent explores repository using tools
+          ↓
+Creates WASABI.md
+          ↓
+Verify file exists
+          ↓
+Load and return its contents
+```
+- [DONE] : clean and minimal TUI for wasabi
 - Precise reads
 - Exact replacement
 - Insert operations
 - Atomic writes
-- File hashes
-- Script permissions
+- [DONE] : Script permissions
 - System-prompt hardening
 - implement a way to make sure all the dependencies are available for the agent, need to create single installation script to install dependencies as well as the agent code.
 
@@ -118,7 +152,7 @@ Everything else remains untouched.
 - Import extraction
 - Dependency graph
 - Initial WASABI.md
-- Incremental context update- - s
+- Incremental context updates
 
 ## Day 2 - 12th july 2026
 - Complete surgical-edit system
