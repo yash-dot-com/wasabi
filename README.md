@@ -12,6 +12,24 @@ The project is primarily a hands-on exploration of how coding agents work intern
 
 ## Engineering Focus
 
+## Performance and Efficiency
+
+Wasabi implements advanced file mutation tools that significantly enhance the editing and writing capabilities of the agent. Here's how these features contribute to improved token usage efficiency:
+
+- **Surgical Edits**: By allowing precise modifications without reading entire files, Wasabi reduces unnecessary token usage and focuses on quality content updates.
+
+- **Atomic Operations**: Ensures that changes are applied in a single operation, preventing partial updates that could require additional tokens to correct.
+
+- **File Integrity Checks**: By validating files before mutations, Wasabi avoids staleness and ensures that edits are relevant, which maintains the quality of output without wasting tokens on invalid transformations.
+
+- **Dynamic Context Management**: This feature allows the agent to adapt content actively based on current requirements, leading to more meaningful text generation with fewer tokens.
+
+- **Enhanced Interaction**: With the capability to manage both text and structure, agents can execute complex edits that optimize content for clarity and relevance, improving the overall quality-to-token ratio.
+
+By maintaining a high-quality output while minimizing token usage, Wasabi enhances productivity and reduces API costs associated with language model interactions.
+
+- **Completion Testing** — testing the ability to replace and insert commands.
+
 Wasabi explores:
 
 - **Agentic workflows** — designing tools that an LLM can combine and reason over to complete multi-step software engineering tasks.
@@ -23,6 +41,12 @@ Wasabi explores:
 - **Agent security research** — studying vulnerabilities that real-world agentic products face, including prompt injection, tool misuse, excessive agency, indirect execution bypasses, malicious repository content, unsafe code execution, and confused-deputy-style behavior.
 
 ## Implementation Status
+
+#### Wasabi now has ability to surgically read, write and edit files. 
+- lesser tokens used and more efficient and accurate editing.
+<p align="center">
+  <img src="static/Precise-edits.png" width="600" alt="Precise Edits">
+</p>
 
 ### Completed
 

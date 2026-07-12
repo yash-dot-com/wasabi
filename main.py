@@ -1,6 +1,7 @@
 import platform
 import os
 import hashlib
+import tempfile
 from dataclasses import dataclass, asdict
 from pydantic import BaseModel
 from typing import Callable, Dict, List, Any, Optional
@@ -28,6 +29,7 @@ openai = os.getenv("OPENAI_API")
 system_prompt_path = os.getenv("SYSTEM_PROMPT_PATH")
 project_root = Path.cwd().resolve()
 MAX_OUTPUT = 100_000 # for truncating stdout / stderr from subprocesses 
+MAX_TOOL_CALLS_PER_TOOL = 5
 
 def get_system_prompt(system_prompt_path: str):
     """ safely loads system instructions from specified file """
@@ -94,6 +96,31 @@ class Agent:
         """Return the SHA-256 hash of a file's current contents."""
         with open(file_path, "rb") as file:
             return hashlib.sha256(file.read()).hexdigest()
+
+    def _validate_file_hash(self, file_path: Path, expected_hash: str) -> bool:
+        current_hash = self._get_file_hash(file_path)
+        return current_hash == expected_hash
+
+    def _atomic_write(self, file_path: Path, content: str) -> None:
+        temporary_path: Optional[Path] = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="",
+                dir=file_path.parent,
+                delete=False,
+            ) as temporary_file:
+                temporary_path = Path(temporary_file.name)
+                temporary_file.write(content)
+                temporary_file.flush()
+                os.fsync(temporary_file.fileno())
+
+            os.replace(temporary_path, file_path)
+        except Exception:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+            raise
 
     @staticmethod
     def _requires_project_context(user_input: str) -> bool:
@@ -189,6 +216,35 @@ class Agent:
             ),
 
             Tool(
+                name="read_lines",
+                description=(
+                    "Read an inclusive, 1-based line range from a file and return "
+                    "line-numbered content, the current SHA-256 file hash, and total lines."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path to the file, relative to the project root.",
+                        },
+                        "start_line": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "First line to read, using 1-based inclusive numbering.",
+                        },
+                        "end_line": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Last line to read, using 1-based inclusive numbering.",
+                        },
+                    },
+                    "required": ["path", "start_line", "end_line"],
+                    "additionalProperties": False,
+                },
+            ),
+
+            Tool(
                 name="list_files",
                 description="list all files and directories in the specified path",
                 parameters={
@@ -206,7 +262,10 @@ class Agent:
 
             Tool(
                 name="edit_file",
-                description="edit a file by replacing old_text with new_text. creates the file if it doesn't exist",
+                description=(
+                    "Create a new file with the supplied content. Do not use this tool to edit "
+                    "an existing file; use replace_exact, insert_before, or insert_after instead."
+                ),
                 parameters={
                     "type":"object",
                     "properties": {
@@ -226,6 +285,116 @@ class Agent:
                     "required": ["path","new_text"],
                     "additionalProperties": False
                 }
+            ),
+
+            Tool(
+                name="replace_exact",
+                description=(
+                    "Atomically replace one unique exact text block in an existing file after "
+                    "confirming its SHA-256 hash matches a prior read_lines result."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "Path relative to the project root."},
+                        "expected_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$",
+                            "description": "SHA-256 hash returned by read_lines for this file.",
+                        },
+                        "old_content": {
+                            "type": "string",
+                            "description": "The unique, exact text block to replace.",
+                        },
+                        "new_content": {
+                            "type": "string",
+                            "description": "Replacement text inserted verbatim.",
+                        },
+                    },
+                    "required": ["path", "expected_hash", "old_content", "new_content"],
+                    "additionalProperties": False,
+                },
+            ),
+
+            Tool(
+                name="replace_lines",
+                description=(
+                    "Atomically replace an inclusive 1-based line range in an existing file after "
+                    "confirming its SHA-256 hash matches a prior read_lines result."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "Path relative to the project root."},
+                        "expected_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$",
+                            "description": "SHA-256 hash returned by read_lines for this file.",
+                        },
+                        "start_line": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "First line to replace, using 1-based inclusive numbering.",
+                        },
+                        "end_line": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Last line to replace, using 1-based inclusive numbering.",
+                        },
+                        "replacement": {
+                            "type": "string",
+                            "description": "Replacement text inserted verbatim.",
+                        },
+                    },
+                    "required": ["path", "expected_hash", "start_line", "end_line", "replacement"],
+                    "additionalProperties": False,
+                },
+            ),
+
+            Tool(
+                name="insert_before",
+                description=(
+                    "Atomically insert text verbatim before one unique exact anchor in an existing "
+                    "file after confirming its SHA-256 hash matches a prior read_lines result."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "Path relative to the project root."},
+                        "expected_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$",
+                            "description": "SHA-256 hash returned by read_lines for this file.",
+                        },
+                        "anchor": {"type": "string", "description": "The unique, exact anchor text."},
+                        "new_content": {"type": "string", "description": "Text inserted verbatim."},
+                    },
+                    "required": ["path", "expected_hash", "anchor", "new_content"],
+                    "additionalProperties": False,
+                },
+            ),
+
+            Tool(
+                name="insert_after",
+                description=(
+                    "Atomically insert text verbatim after one unique exact anchor in an existing "
+                    "file after confirming its SHA-256 hash matches a prior read_lines result."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "Path relative to the project root."},
+                        "expected_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$",
+                            "description": "SHA-256 hash returned by read_lines for this file.",
+                        },
+                        "anchor": {"type": "string", "description": "The unique, exact anchor text."},
+                        "new_content": {"type": "string", "description": "Text inserted verbatim."},
+                    },
+                    "required": ["path", "expected_hash", "anchor", "new_content"],
+                    "additionalProperties": False,
+                },
             ),
 
             Tool(
@@ -956,6 +1125,39 @@ class Agent:
             return f"File not found: {path}"
         except Exception as e:
             return f"Error reading file: {str(e)}"
+
+    def _read_lines(self, path: str, start_line: int, end_line: int) -> str:
+        file_path = check_project_root(path)
+
+        if not file_path.is_file():
+            raise RuntimeError(f"File not found: {file_path}")
+        if start_line < 1 or end_line < start_line:
+            raise RuntimeError("Invalid line range: start_line must be at least 1 and no greater than end_line.")
+
+        try:
+            lines = file_path.read_text(encoding="utf-8").splitlines()
+        except OSError as error:
+            raise RuntimeError(f"Could not read file: {error}") from error
+
+        total_lines = len(lines)
+        if end_line > total_lines:
+            raise RuntimeError(
+                f"Invalid line range: {file_path} has {total_lines} lines, but end_line is {end_line}."
+            )
+
+        file_hash = self._get_file_hash(file_path)
+
+        return json.dumps({
+            "path": file_path.relative_to(self.project_root).as_posix(),
+            "start_line": start_line,
+            "end_line": end_line,
+            "file_hash": file_hash,
+            "total_lines": total_lines,
+            "content": [
+                {"line": line_number, "text": line}
+                for line_number, line in enumerate(lines[start_line - 1:end_line], start=start_line)
+            ],
+        })
         
     def _list_files(self, path: str) -> str:
         path = check_project_root(path)
@@ -1055,36 +1257,128 @@ class Agent:
         
 
     def _edit_file(self, path: str, old_text: str, new_text: str) -> str:
-        path = check_project_root(path)
+        file_path = check_project_root(path)
 
         try:
-            if os.path.exists(path) and old_text:
-                with open(path, "r", encoding="utf-8") as f:
-                    content = f.read()
+            if file_path.exists():
+                return (
+                    "Existing file edits require replace_exact, replace_lines, insert_before, or insert_after "
+                    "with a hash returned by read_lines."
+                )
 
-                if old_text not in content:
-                    return f"text not found in file {path}"
-                
-                content = content.replace(old_text, new_text)
-
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(content)
-
-                return f"successfully edited {path}"
-            else:
-                # create fresh file, possibly in nested path 
-                dir_name = os.path.dirname(path)
-
-                if dir_name: 
-                    os.makedirs(dir_name, exist_ok=True)
-                
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(new_text)
-
-                return f"successfully created path : {path}"
-            
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            self._atomic_write(file_path, new_text)
+            return f"successfully created path: {file_path}"
         except Exception as e:
             return f"Error editing file: {str(e)}"
+
+    def _modify_file(
+        self,
+        path: str,
+        expected_hash: str,
+        operation: str,
+        mutation: Callable[[str], str],
+    ) -> str:
+        file_path = check_project_root(path)
+        try:
+            if not file_path.is_file():
+                raise RuntimeError(f"File not found: {file_path}")
+            if not self._validate_file_hash(file_path, expected_hash):
+                raise RuntimeError("File changed since it was read. Call read_lines again before editing.")
+
+            with open(file_path, "r", encoding="utf-8", newline="") as file:
+                updated_content = mutation(file.read())
+            self._atomic_write(file_path, updated_content)
+            return self._surgical_mutation_result(file_path, operation)
+        except OSError as error:
+            raise RuntimeError(f"Could not read file: {error}") from error
+
+    @staticmethod
+    def _require_unique_match(content: str, target: str, target_name: str) -> None:
+        if not target:
+            raise RuntimeError(f"{target_name} must not be empty.")
+
+        match_count = content.count(target)
+        if match_count == 0:
+            raise RuntimeError(f"Exact {target_name} was not found in the file.")
+        if match_count > 1:
+            raise RuntimeError(f"Exact {target_name} is ambiguous; it appears {match_count} times.")
+
+    def _surgical_mutation_result(self, file_path: Path, operation: str) -> str:
+        return json.dumps({
+            "success": True,
+            "operation": operation,
+            "path": file_path.relative_to(self.project_root).as_posix(),
+            "file_hash": self._get_file_hash(file_path),
+        })
+
+    def _replace_exact(
+        self,
+        path: str,
+        expected_hash: str,
+        old_content: str,
+        new_content: str,
+        operation: str = "replace_exact",
+    ) -> str:
+        def replace(content: str) -> str:
+            self._require_unique_match(content, old_content, "old_content")
+            return content.replace(old_content, new_content, 1)
+
+        return self._modify_file(path, expected_hash, operation, replace)
+
+    def _replace_lines(
+        self,
+        path: str,
+        expected_hash: str,
+        start_line: int,
+        end_line: int,
+        replacement: str,
+    ) -> str:
+        def replace(content: str) -> str:
+            lines = content.splitlines(keepends=True)
+            if start_line < 1 or end_line < start_line:
+                raise RuntimeError(
+                    "Invalid line range: start_line must be at least 1 and no greater than end_line."
+                )
+            if end_line > len(lines):
+                raise RuntimeError(
+                    f"Invalid line range: file has {len(lines)} lines, but end_line is {end_line}."
+                )
+
+            lines[start_line - 1:end_line] = [replacement] if replacement else []
+            return "".join(lines)
+
+        return self._modify_file(path, expected_hash, "replace_lines", replace)
+
+    def _insert_before(
+        self,
+        path: str,
+        expected_hash: str,
+        anchor: str,
+        new_content: str,
+    ) -> str:
+        return self._replace_exact(
+            path,
+            expected_hash,
+            anchor,
+            f"{new_content}{anchor}",
+            operation="insert_before",
+        )
+
+    def _insert_after(
+        self,
+        path: str,
+        expected_hash: str,
+        anchor: str,
+        new_content: str,
+    ) -> str:
+        return self._replace_exact(
+            path,
+            expected_hash,
+            anchor,
+            f"{anchor}{new_content}",
+            operation="insert_after",
+        )
         
     # searching text 
     def _search_text(self, search_string: str):
@@ -1139,6 +1433,12 @@ class Agent:
         try:
             if tool_name == "read_file":
                 return self._read_file(tool_input["path"])
+            elif tool_name == "read_lines":
+                return self._read_lines(
+                    tool_input["path"],
+                    tool_input["start_line"],
+                    tool_input["end_line"],
+                )
             elif tool_name == "list_files":
                 return self._list_files(tool_input.get("path", "."))
             elif tool_name == "edit_file":
@@ -1146,6 +1446,35 @@ class Agent:
                     tool_input["path"],
                     tool_input.get("old_text", ""),
                     tool_input["new_text"]
+                )
+            elif tool_name == "replace_exact":
+                return self._replace_exact(
+                    tool_input["path"],
+                    tool_input["expected_hash"],
+                    tool_input["old_content"],
+                    tool_input["new_content"],
+                )
+            elif tool_name == "replace_lines":
+                return self._replace_lines(
+                    tool_input["path"],
+                    tool_input["expected_hash"],
+                    tool_input["start_line"],
+                    tool_input["end_line"],
+                    tool_input["replacement"],
+                )
+            elif tool_name == "insert_before":
+                return self._insert_before(
+                    tool_input["path"],
+                    tool_input["expected_hash"],
+                    tool_input["anchor"],
+                    tool_input["new_content"],
+                )
+            elif tool_name == "insert_after":
+                return self._insert_after(
+                    tool_input["path"],
+                    tool_input["expected_hash"],
+                    tool_input["anchor"],
+                    tool_input["new_content"],
                 )
             elif tool_name == "get_project_root":
                 return self._get_project_root()
@@ -1255,6 +1584,7 @@ class Agent:
 
         # function to create array of tool description as per openai SDK requirement
         tools_schema = self.get_openai_tools_payload()
+        tool_call_counts: Dict[str, int] = {}
 
         while True:
             # request a response from LLM 
@@ -1274,6 +1604,7 @@ class Agent:
             if tool_calls:
                 # append the tool call metadata as history 
                 self.messages.append(assistant_message)
+                limited_tools: set[str] = set()
 
                 # iterate over each requested tool call 
                 for tool_call in tool_calls:
@@ -1286,7 +1617,16 @@ class Agent:
                     self._emit("tool_call", tool_name=tool_name, arguments=tool_input, status="running")
                     started_at = time.perf_counter()
 
-                    execution_result = self._execute_tools(tool_name, tool_input)
+                    tool_call_counts[tool_name] = tool_call_counts.get(tool_name, 0) + 1
+                    if tool_call_counts[tool_name] > MAX_TOOL_CALLS_PER_TOOL:
+                        limited_tools.add(tool_name)
+                        execution_result = (
+                            f"Error: {tool_name} exceeded the per-request limit of "
+                            f"{MAX_TOOL_CALLS_PER_TOOL} calls. Stop retrying this tool and report "
+                            "the blocker to the user."
+                        )
+                    else:
+                        execution_result = self._execute_tools(tool_name, tool_input)
 
                     failed = execution_result.lower().startswith(("error", "file not found"))
 
@@ -1308,6 +1648,15 @@ class Agent:
 
                     # continue execution of further tools
                     continue 
+
+                if limited_tools:
+                    limited_tool_names = ", ".join(sorted(limited_tools))
+                    message = (
+                        f"Stopped because the per-request tool-call limit ({MAX_TOOL_CALLS_PER_TOOL}) "
+                        f"was exceeded for: {limited_tool_names}."
+                    )
+                    self.messages.append({"role": "assistant", "content": message})
+                    return message
             else:
                 self.messages.append({"role":"assistant", "content":assistant_message.content})
                 return assistant_message.content
