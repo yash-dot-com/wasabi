@@ -1,5 +1,6 @@
 import platform
 import os
+import hashlib
 from dataclasses import dataclass, asdict
 from pydantic import BaseModel
 from typing import Callable, Dict, List, Any, Optional
@@ -60,7 +61,9 @@ class Agent:
         event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
         permission_handler: Optional[Callable[[str, str], bool]] = None,
     ):
+        self._api_key = api_key
         self.client = OpenAI(api_key=api_key)
+        self.project_root = Path.cwd().resolve()
         # initialize messages array with system prompt for the agent.
 
         self.messages: List[Dict[str, Any]] = [
@@ -69,6 +72,8 @@ class Agent:
         self.tools: List[Tool] = []
         self._event_handler = event_handler or (lambda event: None)
         self._permission_handler = permission_handler or (lambda tool_name, command: False)
+        self._project_context_loaded = False
+        self._generating_project_context = False
         self._setup_tools()
         self._emit("status", message=f"Agent initialized with {len(self.tools)} tools")
 
@@ -80,59 +85,88 @@ class Agent:
         return user_permission(tool_name, command, self._permission_handler)
 
     def _get_project_root(self) -> str:
-        cwd = Path.cwd().resolve().as_posix()
-        return cwd
+        return self.project_root.as_posix()
     
-    def _ensure_project_context(self):
-        """
-        lazy load the repository context,
-        generate WASABI.md for the project if one doesn't already exists
-        or loads existing one
-        """
-        context_path = self._get_project_root() / "WASABI.md"
+    def _project_context_path(self) -> Path:
+        return self.project_root / "WASABI.md"
 
-        if context_path.exists():
-            return self._load_project_context()
-        
-        return self._generate_project_context()
-    
-    def _generate_project_context(self):
+    def _get_file_hash(self, file_path: Path) -> str:
+        """Return the SHA-256 hash of a file's current contents."""
+        with open(file_path, "rb") as file:
+            return hashlib.sha256(file.read()).hexdigest()
+
+    @staticmethod
+    def _requires_project_context(user_input: str) -> bool:
+        """Return whether a request needs repository knowledge beyond Git metadata."""
+        normalized_input = user_input.lower()
+        context_terms = (
+            "architecture",
+            "dependency",
+            "dependencies",
+            "module",
+            "modules",
+            "codebase",
+            "repository",
+            "project structure",
+            "how does",
+            "where is",
+            "implement",
+            "modify",
+            "change",
+            "fix",
+            "refactor",
+            "optimize",
+            "configure",
+            "add feature",
+            "update",
+        )
+        return any(term in normalized_input for term in context_terms)
+
+    def _ensure_project_context(self) -> str:
+        """Load the saved context, generating it once when it does not exist."""
+        context_path = self._project_context_path()
+        if not context_path.exists():
+            self._generate_project_context()
+
+        context = self._load_project_context()
+        self._project_context_loaded = True
+        return context
+
+    def _generate_project_context(self) -> None:
         """
         Invoke the agent internally with a specialized prompt to inspect
         the repository and create WASABI.md.
         """
+        if self._generating_project_context:
+            raise RuntimeError("Project-context generation is already in progress.")
 
-        project_context_prompt = """Generate a concise WASABI.md containing durable project context.
-                                    Inspect the repository using available tools before writing it.
+        self._generating_project_context = True
+        try:
+            context_agent = Agent(
+                self._api_key,
+                self.messages[0]["content"],
+                self._event_handler,
+                self._permission_handler,
+            )
+            context_agent._generating_project_context = True
+            context_agent.chat(
+                "Create WASABI.md now. Inspect the repository with the available tools, "
+                "then use edit_file to write a concise, durable project summary. Include "
+                "the overview, architecture, key modules, dependencies, entry points, "
+                "commands, security constraints, and engineering decisions. Do not copy "
+                "source code, include chat history, or speculate."
+            )
+        finally:
+            self._generating_project_context = False
 
-                                    Include only:
-                                    - project overview
-                                    - architecture
-                                    - important modules
-                                    - dependencies
-                                    - entry points
-                                    - commands
-                                    - security constraints
-                                    - important engineering decisions
+        if not self._project_context_path().is_file():
+            raise RuntimeError("The agent did not create WASABI.md while generating project context.")
 
-                                    Do not:
-                                    - document every file
-                                    - copy source code
-                                    - include temporary implementation details
-                                    - include conversation history
-                                    - speculate about code you have not inspected
-                                    - make the document unnecessarily verbose
-
-                                    The purpose of WASABI.md is to provide compact, persistent context for future agent sessions.
-                                    """
-        
-        # implement recursive exploration for file systems 
-        self.chat(f"{project_context_prompt}")
-        return f"project context created successfully"
-
-    def _load_project_context(self):
-        context_path = self._get_project_root() / "WASABI.md"
-        return self._read_file(context_path)
+    def _load_project_context(self) -> str:
+        try:
+            return self._project_context_path().read_text(encoding="utf-8").strip()
+        except OSError as error:
+            raise RuntimeError(f"Could not read WASABI.md: {error}") from error
 
         
     def _setup_tools(self):
@@ -198,6 +232,48 @@ class Agent:
                 name="get_project_root",
                 description="get the path for current working directory",
                 parameters={},
+            ),
+
+            Tool(
+                name="ensure_project_context",
+                description=(
+                    "Load the durable WASABI.md project context, generating it only when "
+                    "the file does not exist. Use when repository context is needed."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": False,
+                },
+            ),
+
+            Tool(
+                name="load_project_context",
+                description=(
+                    "Load and return the existing WASABI.md project context. Use only "
+                    "when the file is known to exist; this tool never generates or edits it."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": False,
+                },
+            ),
+
+            Tool(
+                name="generate_project_context",
+                description=(
+                    "Inspect the repository and create WASABI.md when it is missing. "
+                    "This tool does not overwrite an existing context file."
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": False,
+                },
             ),
 
             Tool(
@@ -1073,6 +1149,19 @@ class Agent:
                 )
             elif tool_name == "get_project_root":
                 return self._get_project_root()
+            elif tool_name == "ensure_project_context":
+                return self._ensure_project_context()
+            elif tool_name == "load_project_context":
+                project_context = self._load_project_context()
+                self._project_context_loaded = True
+                return project_context
+            elif tool_name == "generate_project_context":
+                if self._project_context_path().exists():
+                    return "WASABI.md already exists; use load_project_context instead."
+                self._generate_project_context()
+                project_context = self._load_project_context()
+                self._project_context_loaded = True
+                return project_context
             elif tool_name == "delete_file":
                 return self._delete_file(tool_input["file_path"])
             elif tool_name == "restore_file":
@@ -1080,11 +1169,11 @@ class Agent:
             elif tool_name == "git_status":
                 return self._git_status()
             elif tool_name == "git_diff":
-                return self._git_diff(tool_input["file_path"])
+                return self._git_diff(tool_input.get("file_path"))
             # elif tool_name == "git_changed_file":
             #     return self._git_changed_file()
             elif tool_name == "git_log":
-                return self._git_log(tool_input["limit"])
+                return self._git_log(tool_input.get("limit", "20"))
             elif tool_name == "git_show":
                 return self._git_show(tool_input["commit_hash"])
             elif tool_name == "git_diff_summary":
@@ -1106,21 +1195,21 @@ class Agent:
             elif tool_name == "uv_run_script":
                 return self._uv_run_script(
                     tool_input["script_path"],
-                    tool_input["arguments"]
+                    tool_input.get("arguments")
                 )
             elif tool_name == "uv_run_module":
                 return self._uv_run_module(
                     tool_input["module_name"],
-                    tool_input["arguments"]
+                    tool_input.get("arguments")
                 )
             elif tool_name == "uv_run_command":
                 return self._uv_run_command(
                     tool_input["command"],
-                    tool_input["arguments"]
+                    tool_input.get("arguments")
                 )
             elif tool_name == "search_text":
                 return self._search_text(tool_input["query"])
-            elif tool_name == "search_file":
+            elif tool_name == "find_files":
                 return self._search_file(tool_input["pattern"])
             elif tool_name == "search_text_with_context":
                 return self._search_text_with_context(
@@ -1150,6 +1239,17 @@ class Agent:
     
     def chat(self, user_input: str) -> str:
         """ core execution loop for the agent to chat and execute tools """
+
+        if (
+            not self._project_context_loaded
+            and not self._generating_project_context
+            and self._requires_project_context(user_input)
+        ):
+            project_context = self._ensure_project_context()
+            self.messages.append({
+                "role": "system",
+                "content": f"Project context from WASABI.md:\n\n{project_context}",
+            })
 
         self.messages.append({"role": "user", "content": user_input})
 

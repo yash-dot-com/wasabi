@@ -50,7 +50,7 @@ Wasabi explores:
 - [x] File discovery
 - [x] Minimal clean TUI
 
-### Remaining — Finish Wasabi in 2 Days
+### Remaining 
 
 #### Precise Reads and Surgical Edits
 - [ ] Read exact line ranges with line numbers

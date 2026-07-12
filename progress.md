@@ -137,7 +137,9 @@ Verify file exists
 Load and return its contents
 ```
 - [DONE] : clean and minimal TUI for wasabi
-- Precise reads
+- [CURRENTLY] : Precise reads with hash based context validation
+- basically while the agent works it may cache the content in memory and might be unaware of latest manual changed created by user. that means if I change something after the agent last read it, the agent will be unaware of changes. to tackle this we are implementing hash based system that agent will use to check if the file has been updated since the last read. if yes then it will re-read it. to incorporate latest changes.
+- it prevents the agent from overwriting newer changes based on stale context. It's a simple implementation of optimistic concurrency control tailored to files.
 - Exact replacement
 - Insert operations
 - Atomic writes
