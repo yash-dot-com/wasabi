@@ -44,9 +44,6 @@ Wasabi explores:
 
 #### Wasabi now has ability to surgically read, write and edit files. 
 - lesser tokens used and more efficient and accurate editing.
-<p align="center">
-  <img src="static/Precise-edits.png" width="600" alt="Precise Edits">
-</p>
 
 ### Completed
 
