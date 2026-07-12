@@ -1,7 +1,7 @@
 # Wasabi
 
 <p align="center">
-  <img src="static/Wasabi-Header.png" width="1100" alt="Wasabi Logo">
+  <img src="static/Wasabi-Header.jpeg" width="1100" alt="Wasabi Logo">
 </p>
 
 ## About
